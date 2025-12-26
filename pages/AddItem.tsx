@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { processImageWithAI } from '../services/geminiService';
@@ -17,6 +16,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
   const [step, setStep] = useState<'upload' | 'camera' | 'processing' | 'finalize'>('upload');
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const [name, setName] = useState('');
   const [isPublic, setIsPublic] = useState(true);
@@ -36,11 +36,13 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
 
   const startCamera = async () => {
     setStep('camera');
+    setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
       console.error("Camera error:", err);
+      setError("Camera access denied.");
       setStep('upload');
     }
   };
@@ -54,7 +56,9 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       const dataUrl = canvasRef.current.toDataURL('image/jpeg');
       
       const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
       
       triggerProcessing(dataUrl);
     }
@@ -62,33 +66,43 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
 
   const triggerProcessing = async (base64: string) => {
     setStep('processing');
-    const processed = await processImageWithAI(base64);
-    setProcessedImage(processed || base64);
+    setError(null);
+    try {
+      const processed = await processImageWithAI(base64);
+      setProcessedImage(processed || base64);
+    } catch (e) {
+      setProcessedImage(base64);
+    }
     setStep('finalize');
   };
 
   const handleSave = async () => {
     if (!processedImage || !name) return;
     setLoading(true);
+    setError(null);
 
     try {
-      // 1. Upload to Supabase Storage
-      const base64Data = processedImage.split(',')[1];
-      const blob = await (await fetch(processedImage)).blob();
-      const fileName = `${ownerId}/${Date.now()}.png`;
+      // 1. Convert base64 to Blob
+      const response = await fetch(processedImage);
+      const blob = await response.blob();
       
+      // 2. Upload to Supabase Storage
+      const fileName = `${ownerId}/${Date.now()}.png`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('inventory')
-        .upload(fileName, blob, { contentType: 'image/png' });
+        .upload(fileName, blob, { 
+          contentType: 'image/png',
+          upsert: true 
+        });
 
       if (uploadError) throw uploadError;
 
-      // 2. Get Public URL
+      // 3. Get Public URL
       const { data: { publicUrl } } = supabase.storage
         .from('inventory')
         .getPublicUrl(fileName);
 
-      // 3. Save to Database
+      // 4. Save to Database
       const { error: dbError } = await supabase
         .from('items')
         .insert([{
@@ -103,17 +117,23 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       if (dbError) throw dbError;
 
       navigate('/my-space');
-    } catch (error) {
-      console.error("Save error:", error);
-      alert("Failed to save item. Check console.");
+    } catch (err: any) {
+      console.error("Save error:", err);
+      setError(err.message || "Failed to save item. Check storage permissions.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-xl mx-auto py-12">
-      <h1 className="text-[14px] uppercase tracking-[0.3em] mb-16">ADD TO ARCHIVE</h1>
+    <div className="flex flex-col items-center w-full max-w-xl mx-auto py-12 px-4">
+      <h1 className="text-[14px] uppercase tracking-[0.3em] mb-16 text-center">ADD TO ARCHIVE</h1>
+
+      {error && (
+        <div className="w-full p-4 mb-8 bg-black text-white text-[10px] uppercase tracking-widest text-center">
+          {error}
+        </div>
+      )}
 
       {step === 'upload' && (
         <div className="w-full flex flex-col items-center space-y-8">
@@ -121,17 +141,22 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
             onClick={() => fileInputRef.current?.click()}
             className="w-full aspect-square border-2 border-dashed border-gray-100 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
           >
-            <span className="text-[11px] uppercase tracking-widest text-gray-400">Upload Image</span>
+            <span className="text-[11px] uppercase tracking-widest text-gray-400">Select File</span>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
           </div>
-          <button onClick={startCamera} className="text-[11px] uppercase tracking-widest text-gray-400 hover:text-black transition-colors">Use Camera</button>
+          <button onClick={startCamera} className="text-[11px] uppercase tracking-widest text-gray-400 hover:text-black transition-colors">Camera</button>
         </div>
       )}
 
       {step === 'camera' && (
         <div className="w-full flex flex-col items-center space-y-8">
-          <video ref={videoRef} autoPlay playsInline className="w-full bg-black aspect-square object-cover" />
-          <button onClick={capturePhoto} className="w-16 h-16 border-4 border-gray-200 rounded-full flex items-center justify-center">
+          <div className="w-full aspect-square overflow-hidden bg-black">
+            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+          </div>
+          <button 
+            onClick={capturePhoto} 
+            className="w-16 h-16 border-4 border-gray-200 rounded-full flex items-center justify-center hover:border-black transition-colors"
+          >
             <div className="w-12 h-12 bg-gray-100 rounded-full" />
           </button>
         </div>
@@ -140,7 +165,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       {step === 'processing' && (
         <div className="w-full aspect-square flex flex-col items-center justify-center space-y-4">
           <div className="w-8 h-8 border-t-2 border-black rounded-full animate-spin" />
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400">Transforming Archive State...</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400">Isolating Object...</p>
         </div>
       )}
 
@@ -152,34 +177,34 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
 
           <div className="flex flex-col space-y-8">
             <input 
-              type="text" placeholder="ITEM CODE / NAME" 
+              type="text" placeholder="NAME / IDENTIFIER" 
               className="w-full border-b border-gray-200 py-4 text-[12px] uppercase tracking-[0.2em] focus:outline-none focus:border-black transition-colors bg-transparent"
               value={name} onChange={(e) => setName(e.target.value)}
             />
 
             <div className="space-y-4">
-              {['Public Archive', 'For Sale', 'Open to Trade'].map((label, idx) => (
+              {[
+                { label: 'Public Visibility', state: isPublic, setter: setIsPublic },
+                { label: 'Listed For Sale', state: isForSale, setter: setIsForSale },
+                { label: 'Open To Trade', state: isForTrade, setter: setIsForTrade }
+              ].map((item, idx) => (
                 <label key={idx} className="flex items-center space-x-4 cursor-pointer group">
                   <input 
                     type="checkbox" 
-                    checked={idx === 0 ? isPublic : idx === 1 ? isForSale : isForTrade}
-                    onChange={(e) => {
-                      if (idx === 0) setIsPublic(e.target.checked);
-                      if (idx === 1) setIsForSale(e.target.checked);
-                      if (idx === 2) setIsForTrade(e.target.checked);
-                    }}
-                    className="w-4 h-4 border-gray-200 rounded-none checked:bg-black"
+                    checked={item.state}
+                    onChange={(e) => item.setter(e.target.checked)}
+                    className="w-4 h-4 border-gray-200 rounded-none checked:bg-black accent-black"
                   />
-                  <span className="text-[11px] uppercase tracking-widest text-gray-400 group-hover:text-black transition-colors">{label}</span>
+                  <span className="text-[11px] uppercase tracking-widest text-gray-400 group-hover:text-black transition-colors">{item.label}</span>
                 </label>
               ))}
             </div>
 
             <button 
-              onClick={handleSave} disabled={loading}
-              className="w-full py-6 bg-black text-white text-[11px] uppercase tracking-[0.4em] hover:bg-gray-900 transition-colors disabled:opacity-50"
+              onClick={handleSave} disabled={loading || !name}
+              className="w-full py-6 bg-black text-white text-[11px] uppercase tracking-[0.4em] hover:bg-gray-900 transition-colors disabled:opacity-30"
             >
-              {loading ? 'ARCHIVING...' : 'Save to Inventory'}
+              {loading ? 'UPLOADING...' : 'ARCHIVE ITEM'}
             </button>
           </div>
         </div>

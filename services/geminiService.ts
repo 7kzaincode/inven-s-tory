@@ -2,30 +2,26 @@ import { GoogleGenAI } from "@google/genai";
 
 const TRANSFORM_PROMPT = `
 YEEZY PRODUCT IMAGE TRANSFORM:
-Neutral white or cloudy background
-Matte lighting
-Soft shadows
-No environment or room context
-Centered floating product
-Square or near-square crop
-Studio catalog energy
-Remove clutter, wrinkles, and distracting texture
-Do NOT stylize like fashion editorials
-Do NOT add color grading
-This should look like yeezy supply product images
+- Pure neutral white or light grey background
+- Matte lighting, soft shadows
+- Centered floating product
+- Minimalist e-commerce catalog aesthetic
+- Remove all clutter, backgrounds, and human elements
+- Output: Isolated object on white
 `;
 
 export async function processImageWithAI(base64Image: string): Promise<string | null> {
-  const apiKey = process.env.API_KEY;
+  // Use process.env.API_KEY as mandated by the SDK instructions
+  const apiKey = (window as any).process?.env?.API_KEY;
+  
   if (!apiKey) {
-    console.error("API_KEY not found in environment.");
+    console.error("Gemini API_KEY not found. Ensure process.env.API_KEY is configured.");
     return null;
   }
 
   try {
     const ai = new GoogleGenAI({ apiKey });
     
-    // We use gemini-2.5-flash-image for image processing tasks
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {

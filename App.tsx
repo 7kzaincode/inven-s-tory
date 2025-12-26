@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -20,13 +19,18 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        fetchProfile(session.user.id, session.user.email!);
-      } else {
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (session) {
+          fetchProfile(session.user.id, session.user.email!);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Auth initialization failed:", err);
         setLoading(false);
-      }
-    });
+      });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -42,19 +46,24 @@ const App: React.FC = () => {
   }, []);
 
   const fetchProfile = async (userId: string, email: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (data) {
-      setSession({
-        user: { id: userId, email },
-        profile: data as Profile
-      });
+      if (data) {
+        setSession({
+          user: { id: userId, email },
+          profile: data as Profile
+        });
+      }
+    } catch (err) {
+      console.error("Profile fetch failed:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleLogout = async () => {
@@ -65,7 +74,10 @@ const App: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <span className="text-[10px] uppercase tracking-[0.4em] animate-pulse">Initializing...</span>
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-8 h-8 border-t border-black rounded-full animate-spin" />
+          <span className="text-[10px] uppercase tracking-[0.4em] text-gray-400">Archival State Link...</span>
+        </div>
       </div>
     );
   }
