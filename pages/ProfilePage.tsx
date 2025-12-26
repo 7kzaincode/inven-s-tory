@@ -44,7 +44,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
     const { data: itemsData } = await supabase.from('items').select('*').eq('owner_id', profile.id).order('created_at', { ascending: false });
     if (itemsData) setItems(itemsData as Item[]);
 
-    // Fetch Friends (Public Graph)
+    // Fetch Friends
     const { data: friendRecords } = await supabase
       .from('friends')
       .select('requester_id, receiver_id, requester:profiles!friends_requester_id_fkey(*), receiver:profiles!friends_receiver_id_fkey(*)')
@@ -78,11 +78,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
       reader.onload = async (event) => {
         const base64 = event.target?.result as string;
         const normalized = await processImageWithAI(base64);
-        
         const blob = await (await fetch(normalized || base64)).blob();
         const fileName = `avatars/${currentUser.id}_${Date.now()}.png`;
         const { error: uploadError } = await supabase.storage.from('inventory').upload(fileName, blob);
-        
         if (!uploadError) {
           const { data: { publicUrl } } = supabase.storage.from('inventory').getPublicUrl(fileName);
           await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
@@ -111,17 +109,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
     setActionLoading(false);
   };
 
-  const reportProfile = async () => {
-    if (!currentUser || !targetProfile) return;
-    const reason = window.prompt("REASON FOR REPORTING ARCHIVE:");
-    if (reason) {
-      await supabase.from('reports').insert({ reporter_id: currentUser.id, target_profile_id: targetProfile.id, reason });
-      alert("REPORT SUBMITTED. ARCHIVE REVIEW INITIATED.");
-    }
-  };
-
-  if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-900">Querying Archive Identity...</div>;
-  if (!targetProfile) return <div className="py-32 text-center text-[11px] uppercase tracking-widest text-zinc-900 font-bold">Archive @{username} Not Found</div>;
+  if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-900">Syncing Archive Identity...</div>;
+  if (!targetProfile) return <div className="py-32 text-center text-[11px] uppercase tracking-widest text-zinc-900 font-bold">Identity Not Found</div>;
 
   const isSelf = currentUser?.id === targetProfile.id;
 
@@ -151,48 +140,52 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
         <div className="flex flex-col items-center space-y-6">
           <h1 className="text-[32px] uppercase tracking-[0.4em] font-bold text-zinc-900 leading-none">@{targetProfile.username}</h1>
           <div className="flex gap-8 items-center border-y border-zinc-50 py-4 px-12">
-            <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-500 font-bold">{items.length} ARCHIVAL UNITS</span>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-500 font-bold">{friends.length} LINKS</span>
+            <div className="flex flex-col items-center">
+              <span className="text-[14px] font-bold text-zinc-900">{items.length}</span>
+              <span className="text-[9px] uppercase tracking-[0.3em] text-zinc-400 font-bold">UNITS</span>
+            </div>
+            <div className="w-[1px] h-6 bg-zinc-100" />
+            <div className="flex flex-col items-center">
+              <span className="text-[14px] font-bold text-zinc-900">{friends.length}</span>
+              <span className="text-[9px] uppercase tracking-[0.3em] text-zinc-400 font-bold">LINKS</span>
+            </div>
           </div>
         </div>
 
         {isEditing ? (
-          <div className="w-full max-w-lg mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="space-y-3">
-              <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Biography</label>
-              <textarea 
-                value={editBio} onChange={e => setEditBio(e.target.value)}
-                placeholder="IDENTITY BIOGRAPHY..."
-                className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 focus:border-zinc-900 transition-all shadow-inner"
-              />
-            </div>
+          <div className="w-full max-lg mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <textarea 
+              value={editBio} onChange={e => setEditBio(e.target.value)}
+              placeholder="IDENTITY BIOGRAPHY..."
+              className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 focus:border-zinc-900 transition-all shadow-inner"
+            />
             <div className="flex gap-6">
-              <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all">Commit Changes</button>
-              <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-50 transition-all">Discard</button>
+              <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all">Commit</button>
+              <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em]">Cancel</button>
             </div>
           </div>
         ) : (
-          <p className="max-w-2xl text-center mt-12 text-[15px] text-zinc-700 font-medium tracking-wide leading-relaxed px-6 whitespace-pre-wrap italic">
-            {targetProfile.bio || (isSelf ? 'No archival bio established.' : 'Identity bio is unwritten.')}
+          <p className="max-w-2xl text-center mt-12 text-[15px] text-zinc-700 font-medium tracking-wide leading-relaxed px-6 italic whitespace-pre-wrap">
+            {targetProfile.bio || (isSelf ? 'No bio established.' : 'Identity bio is unwritten.')}
           </p>
         )}
 
         <div className="flex gap-6 mt-16">
           {isSelf ? (
-            <button onClick={() => setIsEditing(true)} className="text-[11px] uppercase tracking-[0.4em] font-bold border border-zinc-900 px-12 py-5 hover:bg-zinc-900 hover:text-white transition-all">Edit Archive Identity</button>
+            <>
+              <button onClick={() => setIsEditing(true)} className="text-[11px] uppercase tracking-[0.4em] font-bold border border-zinc-900 px-12 py-5 hover:bg-zinc-900 hover:text-white transition-all">Edit Archive</button>
+              <button onClick={() => navigate('/add')} className="text-[11px] uppercase tracking-[0.4em] font-bold bg-zinc-900 text-white px-12 py-5 hover:bg-black transition-all">Post Bulletin</button>
+            </>
           ) : (
             <>
               {!friendship && (
                 <button onClick={sendFriendRequest} disabled={actionLoading} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 font-bold px-10 py-5 hover:bg-zinc-900 hover:text-white transition-all">Link Archive</button>
               )}
               {friendship?.status === 'pending' && (
-                <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-400 font-bold px-10 py-5 border border-zinc-100">Pending Link</span>
+                <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-400 font-bold px-10 py-5 border border-zinc-100">Pending</span>
               )}
-              {friendship?.status === 'accepted' && (
-                <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-900 font-bold px-10 py-5 border border-zinc-900">Linked Identity</span>
-              )}
-              <Link to={`/messages/${targetProfile.id}`} className="text-[11px] uppercase tracking-[0.3em] bg-zinc-900 text-white font-bold px-10 py-5 hover:bg-black transition-all">Send Direct Message</Link>
-              <button onClick={reportProfile} className="text-[10px] uppercase tracking-widest text-red-500 font-bold px-6 border border-transparent hover:border-red-100 transition-all">Report</button>
+              <Link to={`/trade/${targetProfile.username}`} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 text-zinc-900 font-bold px-10 py-5 hover:bg-zinc-50 transition-all">Propose Trade</Link>
+              <Link to={`/messages/${targetProfile.id}`} className="text-[11px] uppercase tracking-[0.3em] bg-zinc-900 text-white font-bold px-10 py-5 hover:bg-black transition-all">Send Message</Link>
             </>
           )}
         </div>
@@ -207,25 +200,18 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
         <aside className="w-full lg:w-96 space-y-16 border-t lg:border-t-0 lg:border-l border-zinc-50 pt-16 lg:pt-0 lg:pl-16">
           <section>
             <h3 className="text-[12px] uppercase tracking-[0.4em] text-zinc-900 mb-10 font-bold">ESTABLISHED LINKS</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-6">
+            <div className="space-y-6">
               {friends.map(f => (
-                <Link key={f.id} to={`/profile/${f.username}`} className="flex items-center gap-5 group p-2 hover:bg-zinc-50 transition-all">
+                <Link key={f.id} to={`/profile/${f.username}`} className="flex items-center gap-5 group hover:bg-zinc-50 p-2 transition-all">
                   <div className="w-10 h-10 bg-zinc-50 rounded-full border border-zinc-100 overflow-hidden flex-shrink-0 shadow-sm">
                     {f.avatar_url && <img src={f.avatar_url} className="w-full h-full object-cover" />}
                   </div>
-                  <span className="text-[13px] font-bold uppercase tracking-[0.15em] text-zinc-600 group-hover:text-zinc-900 transition-colors truncate">@{f.username}</span>
+                  <span className="text-[13px] font-bold uppercase tracking-[0.15em] text-zinc-600 group-hover:text-zinc-900">@{f.username}</span>
                 </Link>
               ))}
-              {friends.length === 0 && <p className="text-[10px] uppercase tracking-widest text-zinc-300 italic">No connections verified.</p>}
+              {friends.length === 0 && <p className="text-[10px] uppercase tracking-widest text-zinc-300 italic">No links verified.</p>}
             </div>
           </section>
-
-          {targetProfile.contact_link && (
-            <section>
-              <h3 className="text-[11px] uppercase tracking-[0.4em] text-zinc-400 mb-6 font-bold">EXTERNAL RELAY</h3>
-              <a href={targetProfile.contact_link} target="_blank" rel="noreferrer" className="text-[12px] font-bold uppercase tracking-widest text-zinc-900 underline">External Portfolio</a>
-            </section>
-          )}
         </aside>
       </div>
     </div>

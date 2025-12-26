@@ -24,13 +24,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
               to="/" 
               className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname === '/' ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
             >
-              DIRECTORY
+              EXPLORE
             </Link>
             {user && (
               <>
                 <Link 
-                  to="/my-space" 
-                  className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname === '/my-space' ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
+                  to={`/profile/${user.username}`} 
+                  className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname.includes(`/profile/${user.username}`) ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
                 >
                   ARCHIVE
                 </Link>
@@ -38,13 +38,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                   to="/inbox" 
                   className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname === '/inbox' ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
                 >
-                  SIGNALS
+                  INBOX
                 </Link>
                 <Link 
                   to="/messages" 
                   className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname.startsWith('/messages') ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
                 >
-                  RELAY
+                  MESSAGES
                 </Link>
               </>
             )}
@@ -52,12 +52,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         </div>
 
         <div className="flex gap-10 items-center">
-          <Link 
-            to="/add" 
-            className="text-[28px] leading-none text-zinc-950 hover:opacity-70 transition-opacity font-light"
-          >
-            +
-          </Link>
+          {user && (
+            <Link 
+              to="/add" 
+              className="text-[28px] leading-none text-zinc-950 hover:opacity-70 transition-opacity font-light"
+            >
+              +
+            </Link>
+          )}
           {user ? (
             <button 
               onClick={onLogout}
