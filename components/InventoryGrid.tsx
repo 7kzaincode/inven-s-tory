@@ -10,35 +10,45 @@ interface InventoryGridProps {
 
 const InventoryGrid: React.FC<InventoryGridProps> = ({ items, isOwner }) => {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-16 w-full max-w-[1400px]">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-8 gap-y-16 w-full">
       {items.map((item) => (
-        <div key={item.id} className="group flex flex-col items-center">
-          <Link to={`/item/${item.id}`} className="w-full aspect-square mb-6 overflow-hidden bg-[#F9F9F9] flex items-center justify-center transition-opacity duration-500 group-hover:opacity-[0.97]">
+        <div key={item.id} className="group flex flex-col">
+          <Link to={`/item/${item.id}`} className="w-full aspect-square mb-6 overflow-hidden bg-[#FDFDFD] border border-zinc-50 flex items-center justify-center transition-all duration-700 hover:shadow-xl hover:-translate-y-1">
             <img 
               src={item.image_url} 
               alt={item.name} 
-              className="w-full h-full object-contain mix-blend-multiply"
+              className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-1000"
               loading="lazy"
             />
           </Link>
-          <div className="flex flex-col items-center space-y-1">
-            <Link to={`/item/${item.id}`} className="text-[11px] tracking-[0.1em] text-gray-500 uppercase hover:text-black transition-colors">
-              {item.name}
-            </Link>
-            {isOwner && (
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                {item.for_sale && <span className="text-[9px] text-gray-400 uppercase tracking-widest">Sale</span>}
-                {item.for_trade && <span className="text-[9px] text-gray-400 uppercase tracking-widest">Trade</span>}
-                {!item.public && <span className="text-[9px] text-gray-300 uppercase tracking-widest italic">Private</span>}
+          <div className="flex flex-col space-y-2 px-1">
+            <div className="flex justify-between items-start">
+              <Link to={`/item/${item.id}`} className="text-[12px] tracking-[0.1em] text-zinc-900 font-bold uppercase hover:underline leading-tight max-w-[80%]">
+                {item.name}
+              </Link>
+              {item.category && (
+                <span className="text-[8px] bg-zinc-900 text-white px-1.5 py-0.5 font-bold uppercase tracking-widest">{item.category[0]}</span>
+              )}
+            </div>
+            
+            <div className="flex gap-3 items-center">
+              <span className="text-[9px] text-zinc-400 uppercase tracking-widest font-bold">{item.condition}</span>
+              <div className="flex gap-2">
+                {item.for_sale && <div className="w-1 h-1 rounded-full bg-zinc-900" title="For Sale" />}
+                {item.for_trade && <div className="w-1 h-1 rounded-full bg-zinc-400" title="For Trade" />}
               </div>
+            </div>
+
+            {isOwner && !item.public && (
+              <span className="text-[8px] uppercase tracking-widest text-zinc-300 italic font-bold">Private Vault</span>
             )}
           </div>
         </div>
       ))}
       
       {items.length === 0 && (
-        <div className="col-span-full py-32 text-center">
-          <p className="text-[11px] uppercase tracking-widest text-gray-300">Empty Archive</p>
+        <div className="col-span-full py-40 text-center border-2 border-dashed border-zinc-50 rounded-xl">
+          <p className="text-[11px] uppercase tracking-[0.5em] text-zinc-200 font-bold">Archive Vacant</p>
         </div>
       )}
     </div>

@@ -1,9 +1,10 @@
 
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import InventoryGrid from '../components/InventoryGrid';
 import { supabase } from '../services/supabase';
 import { Item, Profile, Friend } from '../types';
+import { processImageWithAI } from '../services/geminiService';
 
 interface ProfilePageProps {
   currentUser: Profile | null;
@@ -11,11 +12,20 @@ interface ProfilePageProps {
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
   const { username } = useParams<{ username: string }>();
+  const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [targetProfile, setTargetProfile] = useState<Profile | null>(null);
   const [items, setItems] = useState<Item[]>([]);
+  const [friends, setFriends] = useState<Profile[]>([]);
   const [friendship, setFriendship] = useState<Friend | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Edit State
+  const [editBio, setEditBio] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     fetchProfileAndItems();
@@ -23,31 +33,33 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
 
   const fetchProfileAndItems = async () => {
     setLoading(true);
-    // STRICT USERNAME LOOKUP
-    const { data: profile, error: pError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('username', username)
-      .single();
-
-    if (pError || !profile) {
+    const { data: profile } = await supabase.from('profiles').select('*').eq('username', username).single();
+    if (!profile) {
       setLoading(false);
       return;
     }
-
     setTargetProfile(profile as Profile);
-    
-    // Select items - Supabase RLS policy handles visibility based on friendship
-    const { data: itemsData } = await supabase
-      .from('items')
-      .select('*')
-      .eq('owner_id', profile.id)
-      .order('created_at', { ascending: false });
+    setEditBio(profile.bio || '');
 
+    const { data: itemsData } = await supabase.from('items').select('*').eq('owner_id', profile.id).order('created_at', { ascending: false });
     if (itemsData) setItems(itemsData as Item[]);
 
+    // Fetch Friends (Public Graph)
+    const { data: friendRecords } = await supabase
+      .from('friends')
+      .select('requester_id, receiver_id, requester:profiles!friends_requester_id_fkey(*), receiver:profiles!friends_receiver_id_fkey(*)')
+      .eq('status', 'accepted')
+      .or(`requester_id.eq.${profile.id},receiver_id.eq.${profile.id}`);
+
+    if (friendRecords) {
+      const friendProfiles = friendRecords.map(f => {
+        const p = f.requester_id === profile.id ? f.receiver : f.requester;
+        return Array.isArray(p) ? p[0] : p;
+      });
+      setFriends(friendProfiles as unknown as Profile[]);
+    }
+
     if (currentUser) {
-      // Look for any friendship record between current user and target user
       const { data: friendData } = await supabase
         .from('friends')
         .select('*')
@@ -58,87 +70,164 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
     setLoading(false);
   };
 
-  const sendFriendRequest = async () => {
-    if (!currentUser || !targetProfile) return;
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && currentUser) {
+      setUploadingAvatar(true);
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        const normalized = await processImageWithAI(base64);
+        
+        const blob = await (await fetch(normalized || base64)).blob();
+        const fileName = `avatars/${currentUser.id}_${Date.now()}.png`;
+        const { error: uploadError } = await supabase.storage.from('inventory').upload(fileName, blob);
+        
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage.from('inventory').getPublicUrl(fileName);
+          await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
+          fetchProfileAndItems();
+        }
+        setUploadingAvatar(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!currentUser) return;
     setActionLoading(true);
-    const { error } = await supabase
-      .from('friends')
-      .insert({ 
-        requester_id: currentUser.id, 
-        receiver_id: targetProfile.id, 
-        status: 'pending' 
-      });
-    
-    if (!error) fetchProfileAndItems();
+    await supabase.from('profiles').update({ bio: editBio }).eq('id', currentUser.id);
+    setIsEditing(false);
+    fetchProfileAndItems();
     setActionLoading(false);
   };
 
-  if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em]">Retrieving Archive...</div>;
-  if (!targetProfile) return <div className="py-32 text-center text-[11px] uppercase tracking-widest text-gray-300">Archive @{username} Not Found</div>;
+  const sendFriendRequest = async () => {
+    if (!currentUser || !targetProfile) return;
+    setActionLoading(true);
+    await supabase.from('friends').insert({ requester_id: currentUser.id, receiver_id: targetProfile.id, status: 'pending' });
+    fetchProfileAndItems();
+    setActionLoading(false);
+  };
 
-  const isFriend = friendship?.status === 'accepted';
-  const isPending = friendship?.status === 'pending';
+  const reportProfile = async () => {
+    if (!currentUser || !targetProfile) return;
+    const reason = window.prompt("REASON FOR REPORTING ARCHIVE:");
+    if (reason) {
+      await supabase.from('reports').insert({ reporter_id: currentUser.id, target_profile_id: targetProfile.id, reason });
+      alert("REPORT SUBMITTED. ARCHIVE REVIEW INITIATED.");
+    }
+  };
+
+  if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-900">Querying Archive Identity...</div>;
+  if (!targetProfile) return <div className="py-32 text-center text-[11px] uppercase tracking-widest text-zinc-900 font-bold">Archive @{username} Not Found</div>;
+
   const isSelf = currentUser?.id === targetProfile.id;
 
   return (
     <div className="flex flex-col items-center w-full">
-      <header className="w-full mb-24 flex flex-col items-center">
-        <div className="w-24 h-24 bg-gray-50 rounded-full mb-10 flex items-center justify-center border border-gray-100">
-          <span className="text-[18px] text-gray-300 uppercase tracking-widest">@{targetProfile.username.slice(0, 1)}</span>
-        </div>
-        <h1 className="text-[22px] uppercase tracking-[0.4em] font-light mb-4">@{targetProfile.username}</h1>
-        
-        {currentUser && !isSelf && (
-          <div className="flex gap-6 mt-6">
-            {!friendship ? (
-              <button 
-                onClick={sendFriendRequest} disabled={actionLoading}
-                className="text-[11px] uppercase tracking-[0.2em] border border-black px-10 py-4 hover:bg-black hover:text-white transition-all duration-500"
-              >
-                {actionLoading ? 'CONNECTING...' : 'REQUEST CONNECTION'}
-              </button>
+      <header className="w-full mb-32 flex flex-col items-center">
+        <div className="relative group mb-12">
+          <div className="w-40 h-40 bg-zinc-50 rounded-full flex items-center justify-center border border-zinc-100 overflow-hidden shadow-sm transition-all duration-700 hover:shadow-xl">
+            {targetProfile.avatar_url ? (
+              <img src={targetProfile.avatar_url} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-[11px] uppercase tracking-[0.2em] text-gray-400 py-4 border border-transparent px-10">
-                {isPending ? 'CONNECTION PENDING' : 'ARCHIVE LINKED'}
-              </span>
+              <span className="text-[32px] text-zinc-300 uppercase tracking-widest font-bold">@{targetProfile.username[0]}</span>
             )}
-            
-            <Link 
-              to={`/trade/${targetProfile.username}`}
-              className="text-[11px] uppercase tracking-[0.2em] bg-black text-white px-10 py-4 hover:bg-gray-800 transition-all duration-500"
-            >
-              PROPOSE TRADE
-            </Link>
+            {uploadingAvatar && <div className="absolute inset-0 bg-white/80 flex items-center justify-center"><div className="w-6 h-6 border-t-2 border-zinc-900 rounded-full animate-spin" /></div>}
           </div>
-        )}
-
-        {isSelf && (
-          <p className="text-[10px] uppercase tracking-[0.3em] text-gray-300 mt-6">This is your public archive identity</p>
-        )}
-      </header>
-
-      <div className="w-full mb-32">
-        <div className="flex flex-col items-center mb-16">
-          <h2 className="text-[11px] uppercase tracking-[0.3em] text-gray-400 mb-2">
-            {isFriend || isSelf ? 'FULL INVENTORY' : 'PUBLIC SELECTION'}
-          </h2>
-          {!isFriend && !isSelf && (
-            <span className="text-[8px] uppercase tracking-[0.2em] text-gray-300 italic">Connected users see private units</span>
+          {isSelf && (
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute inset-0 bg-black/50 text-white text-[10px] uppercase tracking-[0.2em] font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full"
+            >
+              Update Image
+            </button>
           )}
+          <input type="file" ref={fileInputRef} onChange={handleAvatarChange} className="hidden" accept="image/*" />
         </div>
 
-        <InventoryGrid items={items} />
-        
-        {!isFriend && !isSelf && items.some(i => !i.public) && (
-          <p className="mt-20 text-center text-[10px] uppercase tracking-widest text-gray-300 italic border-t border-gray-50 pt-10 max-w-sm mx-auto">
-            Archive connection required to view non-public archival units
+        <div className="flex flex-col items-center space-y-6">
+          <h1 className="text-[32px] uppercase tracking-[0.4em] font-bold text-zinc-900 leading-none">@{targetProfile.username}</h1>
+          <div className="flex gap-8 items-center border-y border-zinc-50 py-4 px-12">
+            <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-500 font-bold">{items.length} ARCHIVAL UNITS</span>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-500 font-bold">{friends.length} LINKS</span>
+          </div>
+        </div>
+
+        {isEditing ? (
+          <div className="w-full max-w-lg mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="space-y-3">
+              <label className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold">Biography</label>
+              <textarea 
+                value={editBio} onChange={e => setEditBio(e.target.value)}
+                placeholder="IDENTITY BIOGRAPHY..."
+                className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 focus:border-zinc-900 transition-all shadow-inner"
+              />
+            </div>
+            <div className="flex gap-6">
+              <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all">Commit Changes</button>
+              <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-50 transition-all">Discard</button>
+            </div>
+          </div>
+        ) : (
+          <p className="max-w-2xl text-center mt-12 text-[15px] text-zinc-700 font-medium tracking-wide leading-relaxed px-6 whitespace-pre-wrap italic">
+            {targetProfile.bio || (isSelf ? 'No archival bio established.' : 'Identity bio is unwritten.')}
           </p>
         )}
-      </div>
 
-      <footer className="py-16 text-center border-t border-gray-50 w-full max-w-md opacity-40 hover:opacity-100 transition-opacity">
-        <p className="text-[9px] uppercase tracking-[0.4em] text-gray-400">Archival Verification v1.0.2</p>
-      </footer>
+        <div className="flex gap-6 mt-16">
+          {isSelf ? (
+            <button onClick={() => setIsEditing(true)} className="text-[11px] uppercase tracking-[0.4em] font-bold border border-zinc-900 px-12 py-5 hover:bg-zinc-900 hover:text-white transition-all">Edit Archive Identity</button>
+          ) : (
+            <>
+              {!friendship && (
+                <button onClick={sendFriendRequest} disabled={actionLoading} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 font-bold px-10 py-5 hover:bg-zinc-900 hover:text-white transition-all">Link Archive</button>
+              )}
+              {friendship?.status === 'pending' && (
+                <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-400 font-bold px-10 py-5 border border-zinc-100">Pending Link</span>
+              )}
+              {friendship?.status === 'accepted' && (
+                <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-900 font-bold px-10 py-5 border border-zinc-900">Linked Identity</span>
+              )}
+              <Link to={`/messages/${targetProfile.id}`} className="text-[11px] uppercase tracking-[0.3em] bg-zinc-900 text-white font-bold px-10 py-5 hover:bg-black transition-all">Send Direct Message</Link>
+              <button onClick={reportProfile} className="text-[10px] uppercase tracking-widest text-red-500 font-bold px-6 border border-transparent hover:border-red-100 transition-all">Report</button>
+            </>
+          )}
+        </div>
+      </header>
+
+      <div className="w-full mb-32 flex flex-col lg:flex-row gap-24">
+        <div className="flex-1">
+          <h3 className="text-[12px] uppercase tracking-[0.4em] text-zinc-900 mb-12 font-bold px-6 border-l-4 border-zinc-900">ARCHIVE SELECTION</h3>
+          <InventoryGrid items={items} isOwner={isSelf} />
+        </div>
+
+        <aside className="w-full lg:w-96 space-y-16 border-t lg:border-t-0 lg:border-l border-zinc-50 pt-16 lg:pt-0 lg:pl-16">
+          <section>
+            <h3 className="text-[12px] uppercase tracking-[0.4em] text-zinc-900 mb-10 font-bold">ESTABLISHED LINKS</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-6">
+              {friends.map(f => (
+                <Link key={f.id} to={`/profile/${f.username}`} className="flex items-center gap-5 group p-2 hover:bg-zinc-50 transition-all">
+                  <div className="w-10 h-10 bg-zinc-50 rounded-full border border-zinc-100 overflow-hidden flex-shrink-0 shadow-sm">
+                    {f.avatar_url && <img src={f.avatar_url} className="w-full h-full object-cover" />}
+                  </div>
+                  <span className="text-[13px] font-bold uppercase tracking-[0.15em] text-zinc-600 group-hover:text-zinc-900 transition-colors truncate">@{f.username}</span>
+                </Link>
+              ))}
+              {friends.length === 0 && <p className="text-[10px] uppercase tracking-widest text-zinc-300 italic">No connections verified.</p>}
+            </div>
+          </section>
+
+          {targetProfile.contact_link && (
+            <section>
+              <h3 className="text-[11px] uppercase tracking-[0.4em] text-zinc-400 mb-6 font-bold">EXTERNAL RELAY</h3>
+              <a href={targetProfile.contact_link} target="_blank" rel="noreferrer" className="text-[12px] font-bold uppercase tracking-widest text-zinc-900 underline">External Portfolio</a>
+            </section>
+          )}
+        </aside>
+      </div>
     </div>
   );
 };

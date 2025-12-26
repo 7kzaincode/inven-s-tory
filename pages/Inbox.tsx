@@ -48,11 +48,16 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
   const executeTrade = async (trade: any) => {
     setExecuting(true);
     try {
-      // 1. Ownership Transfers
-      await supabase.from('items').update({ owner_id: trade.receiver_id }).in('id', trade.sender_items);
-      await supabase.from('items').update({ owner_id: trade.sender_id }).in('id', trade.receiver_items);
+      // THE SWAP: 
+      // sender_items (belonging to requester) -> transfer to current user (receiver_id)
+      // receiver_items (belonging to current user) -> transfer to requester (sender_id)
       
-      // 2. Logging Provenance
+      const { error: error1 } = await supabase.from('items').update({ owner_id: trade.receiver_id }).in('id', trade.sender_items);
+      const { error: error2 } = await supabase.from('items').update({ owner_id: trade.sender_id }).in('id', trade.receiver_items);
+      
+      if (error1 || error2) throw new Error("Archival transfer failed.");
+
+      // Log the provenance for both flows
       const logs = [
         ...trade.sender_items.map((iid: string) => ({
           item_id: iid, from_owner_id: trade.sender_id, to_owner_id: trade.receiver_id, event_type: 'trade'
@@ -63,13 +68,14 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
       ];
       await supabase.from('item_history').insert(logs);
 
-      // 3. Complete Trade
+      // Close the trade
       await supabase.from('trades').update({ status: 'accepted' }).eq('id', trade.id);
       
       setViewingTrade(null);
       fetchRequests();
-      alert("TRADE EXECUTED. PROVENANCE UPDATED.");
-    } catch (e) {
+      alert("HANDSHAKE COMPLETE. UNITS TRANSFERRED.");
+    } catch (e: any) {
+      alert(e.message);
       console.error(e);
     } finally {
       setExecuting(false);
@@ -82,7 +88,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
     setViewingTrade({ ...trade, senderItemsData: senderItems, receiverItemsData: receiverItems });
   };
 
-  if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em] font-bold">Scanning Signals...</div>;
+  if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-900">Scanning Signals...</div>;
 
   return (
     <div className="flex flex-col items-center w-full max-w-4xl mx-auto space-y-32">
@@ -93,12 +99,12 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
             <div key={req.id} className="p-8 border border-zinc-100 flex justify-between items-center bg-zinc-50/30">
               <span className="text-[12px] uppercase tracking-[0.2em] font-bold text-zinc-900">@{req.requester.username} IS REQUESTING LINK</span>
               <div className="flex gap-4">
-                <button onClick={() => handleFriend(req.id, true)} className="text-[10px] uppercase tracking-widest border border-zinc-900 font-bold px-6 py-2 hover:bg-zinc-900 hover:text-white transition-all">Link</button>
-                <button onClick={() => handleFriend(req.id, false)} className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold px-6 py-2">Discard</button>
+                <button onClick={() => handleFriend(req.id, true)} className="text-[10px] uppercase tracking-widest border border-zinc-900 font-bold px-6 py-2 hover:bg-zinc-900 hover:text-white transition-all">Accept</button>
+                <button onClick={() => handleFriend(req.id, false)} className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold px-6 py-2">Decline</button>
               </div>
             </div>
           ))}
-          {friendRequests.length === 0 && <p className="text-center text-[10px] text-zinc-300 uppercase tracking-widest py-8">No pending links</p>}
+          {friendRequests.length === 0 && <p className="text-center text-[10px] text-zinc-300 uppercase tracking-widest py-8">No pending connections</p>}
         </div>
       </section>
 
@@ -106,15 +112,15 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
         <h2 className="text-[11px] uppercase tracking-[0.4em] text-zinc-900 mb-12 text-center font-bold">PROPOSAL INBOX</h2>
         <div className="space-y-4">
           {tradeRequests.map(trade => (
-            <div key={trade.id} className="p-8 border border-zinc-100 flex justify-between items-center group">
+            <div key={trade.id} className="p-8 border border-zinc-100 flex justify-between items-center group bg-white shadow-sm hover:border-zinc-900 transition-all">
               <div className="flex flex-col space-y-1">
-                <span className="text-[12px] uppercase tracking-[0.2em] font-bold text-zinc-900">OFFER FROM @{trade.sender.username}</span>
-                <span className="text-[9px] text-zinc-500 uppercase tracking-widest">{trade.sender_items.length} units ⇅ {trade.receiver_items.length} units</span>
+                <span className="text-[12px] uppercase tracking-[0.2em] font-bold text-zinc-900">TRADE FROM @{trade.sender.username}</span>
+                <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">{trade.sender_items.length} units offered ⇅ {trade.receiver_items.length} units requested</span>
               </div>
-              <button onClick={() => openTradeDetails(trade)} className="text-[10px] uppercase tracking-widest bg-zinc-900 text-white px-8 py-3 font-bold">Inspect</button>
+              <button onClick={() => openTradeDetails(trade)} className="text-[10px] uppercase tracking-widest bg-zinc-900 text-white px-8 py-3 font-bold hover:bg-black">Inspect Offer</button>
             </div>
           ))}
-          {tradeRequests.length === 0 && <p className="text-center text-[10px] text-zinc-300 uppercase tracking-widest py-8">No active proposals</p>}
+          {tradeRequests.length === 0 && <p className="text-center text-[10px] text-zinc-300 uppercase tracking-widest py-8">Inbox silent</p>}
         </div>
       </section>
 
@@ -122,12 +128,12 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/98 backdrop-blur-md p-8 overflow-y-auto">
           <div className="w-full max-w-5xl flex flex-col items-center space-y-16">
             <header className="text-center">
-              <h3 className="text-[18px] uppercase tracking-[0.4em] font-bold mb-4">ARCHIVAL EXCHANGE</h3>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">BY @{viewingTrade.sender.username}</p>
+              <h3 className="text-[20px] uppercase tracking-[0.4em] font-bold mb-4 text-zinc-900">ARCHIVAL SWAP</h3>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">PROPOSED BY @{viewingTrade.sender.username}</p>
             </header>
             <div className="grid grid-cols-2 gap-16 w-full">
-              <div className="space-y-6">
-                <h4 className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold">OFFERING</h4>
+              <div className="space-y-8">
+                <h4 className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold border-b border-zinc-50 pb-2">THEIR OFFERING</h4>
                 <div className="grid grid-cols-2 gap-4">
                   {viewingTrade.senderItemsData?.map((it: any) => (
                     <div key={it.id} className="aspect-square bg-white border border-zinc-100 p-4">
@@ -136,8 +142,8 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                   ))}
                 </div>
               </div>
-              <div className="space-y-6">
-                <h4 className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold">REQUESTING</h4>
+              <div className="space-y-8">
+                <h4 className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold border-b border-zinc-50 pb-2">YOUR ASSETS</h4>
                 <div className="grid grid-cols-2 gap-4">
                   {viewingTrade.receiverItemsData?.map((it: any) => (
                     <div key={it.id} className="aspect-square bg-white border border-zinc-100 p-4">
@@ -148,10 +154,10 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
               </div>
             </div>
             <div className="flex gap-4 w-full max-w-md">
-              <button onClick={() => executeTrade(viewingTrade)} disabled={executing} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-widest hover:opacity-90">
-                {executing ? 'EXECUTING...' : 'ACCEPT'}
+              <button onClick={() => executeTrade(viewingTrade)} disabled={executing} className="flex-1 py-6 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all">
+                {executing ? 'TRANSFERRING...' : 'CONFIRM SWAP'}
               </button>
-              <button onClick={() => setViewingTrade(null)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-widest hover:bg-zinc-50">BACK</button>
+              <button onClick={() => setViewingTrade(null)} className="flex-1 py-6 border border-zinc-900 text-[11px] font-bold uppercase tracking-widest hover:bg-zinc-50 transition-all">DISMISS</button>
             </div>
           </div>
         </div>

@@ -3,6 +3,8 @@ export interface Profile {
   id: string;
   username: string;
   email?: string;
+  avatar_url?: string;
+  bio?: string;
   contact_link?: string;
   created_at: string;
 }
@@ -64,7 +66,6 @@ export interface PublicTradeAd {
   owner?: Profile;
 }
 
-// Added Friend interface to resolve module member errors
 export interface Friend {
   id: string;
   requester_id: string;
