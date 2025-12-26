@@ -32,7 +32,7 @@ export interface Friend {
   receiver_id: string;
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
-  profiles?: Profile; // Used for joining requester info
+  profiles?: Profile;
 }
 
 export interface Trade {
@@ -43,6 +43,18 @@ export interface Trade {
   receiver_items: string[];
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   created_at: string;
+  sender?: Profile;
+  receiver?: Profile;
+}
+
+export interface PublicTradeAd {
+  id: string;
+  owner_id: string;
+  text: string;
+  offering_ids: string[];
+  looking_for: string;
+  created_at: string;
+  owner?: Profile;
 }
 
 export interface UserSession {

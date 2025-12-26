@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -5,19 +6,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>inven[s]tory</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              zinc: {
+                950: '#09090b',
+              }
+            }
+          }
+        }
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #ffffff;
-        color: #000000;
         -webkit-font-smoothing: antialiased;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+      .dark body {
+        background-color: #09090b;
+        color: #ffffff;
       }
       ::selection {
         background: #000;
         color: #fff;
+      }
+      .dark ::selection {
+        background: #fff;
+        color: #000;
       }
     </style>
   <script type="importmap">
@@ -35,7 +57,7 @@
 }
 </script>
 </head>
-  <body>
+  <body class="bg-white text-zinc-900">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
