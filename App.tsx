@@ -10,6 +10,7 @@ import ProfilePage from './pages/ProfilePage';
 import ItemDetail from './pages/ItemDetail';
 import Friends from './pages/Friends';
 import Inbox from './pages/Inbox';
+import Messages from './pages/Messages';
 import TradeBuilder from './pages/TradeBuilder';
 import { UserSession, Profile } from './types';
 import { supabase } from './services/supabase';
@@ -74,7 +75,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
           <div className="w-8 h-8 border-t border-black rounded-full animate-spin" />
-          <span className="text-[10px] uppercase tracking-[0.4em] text-gray-400">Archival State Link...</span>
+          <span className="text-[10px] uppercase tracking-[0.4em] text-gray-900 font-bold">Synchronizing Archive...</span>
         </div>
       </div>
     );
@@ -104,6 +105,14 @@ const App: React.FC = () => {
           <Route 
             path="/inbox" 
             element={session.user ? <Inbox profile={session.profile!} /> : <Navigate to="/login" replace />} 
+          />
+          <Route 
+            path="/messages" 
+            element={session.user ? <Messages /> : <Navigate to="/login" replace />} 
+          />
+          <Route 
+            path="/messages/:targetUserId" 
+            element={session.user ? <Messages /> : <Navigate to="/login" replace />} 
           />
           <Route 
             path="/trade/:username" 

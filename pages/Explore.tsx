@@ -4,20 +4,19 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { Profile, PublicTradeAd } from '../types';
 
-type Tab = 'ARCHIVES' | 'TRADES';
+const FLAGS = ['ALL', 'FOOTWEAR', 'APPAREL', 'ACCESSORY', 'HARDWARE', 'MEDIA', 'FURNITURE', 'OBJECT'];
 
 const Explore: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('ARCHIVES');
   const [archives, setArchives] = useState<{username: string, count: number}[]>([]);
   const [tradeAds, setTradeAds] = useState<PublicTradeAd[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<'ALL' | 'FOR_SALE' | 'FOR_TRADE'>('ALL');
+  const [activeFlag, setActiveFlag] = useState('ALL');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (activeTab === 'ARCHIVES') fetchArchives();
-    else fetchTradeAds();
-  }, [activeTab, filter]);
+    fetchArchives();
+    fetchTradeAds();
+  }, [activeFlag]);
 
   const fetchArchives = async (query: string = searchQuery) => {
     setLoading(true);
@@ -25,15 +24,14 @@ const Explore: React.FC = () => {
       let pQuery = supabase.from('profiles').select('id, username');
       if (query) pQuery = pQuery.ilike('username', `%${query}%`);
       
-      const { data: profiles } = await pQuery.limit(30);
+      const { data: profiles } = await pQuery.limit(20);
       if (profiles) {
         const results = [];
         for (const p of profiles) {
           let itemQuery = supabase.from('items').select('*', { count: 'exact', head: true })
             .eq('owner_id', p.id).eq('public', true);
           
-          if (filter === 'FOR_SALE') itemQuery = itemQuery.eq('for_sale', true);
-          if (filter === 'FOR_TRADE') itemQuery = itemQuery.eq('for_trade', true);
+          if (activeFlag !== 'ALL') itemQuery = itemQuery.eq('category', activeFlag);
 
           const { count } = await itemQuery;
           if (count !== null && (count > 0 || query)) {
@@ -48,79 +46,69 @@ const Explore: React.FC = () => {
   };
 
   const fetchTradeAds = async () => {
-    setLoading(true);
-    const { data } = await supabase.from('trade_ads').select('*, owner:profiles(*)').order('created_at', { ascending: false });
+    const { data } = await supabase.from('trade_ads').select('*, owner:profiles(*)').order('created_at', { ascending: false }).limit(10);
     if (data) setTradeAds(data as PublicTradeAd[]);
-    setLoading(false);
   };
 
   return (
-    <div className="flex flex-col items-center w-full space-y-16">
-      <div className="flex gap-12 border-b border-zinc-100 dark:border-zinc-900 w-full max-w-lg justify-center pb-4">
-        {['ARCHIVES', 'TRADES'].map((t) => (
-          <button 
-            key={t} onClick={() => setActiveTab(t as Tab)}
-            className={`text-[11px] uppercase tracking-[0.3em] transition-colors ${activeTab === t ? 'text-zinc-900 dark:text-zinc-100 font-medium' : 'text-zinc-400'}`}
-          >
-            {t}
-          </button>
-        ))}
+    <div className="flex w-full gap-12">
+      {/* Sidebar Flags */}
+      <aside className="hidden lg:flex flex-col w-48 space-y-10 sticky top-32 h-fit">
+        <div className="space-y-4">
+          <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-zinc-900 mb-6">ARCHIVE FLAGS</h3>
+          {FLAGS.map(f => (
+            <button 
+              key={f} onClick={() => setActiveFlag(f)}
+              className={`block text-[11px] uppercase tracking-[0.2em] text-left transition-colors ${activeFlag === f ? 'text-zinc-900 font-bold border-l-2 border-zinc-900 pl-4' : 'text-zinc-400 hover:text-zinc-900 pl-4 border-l-2 border-transparent'}`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      {/* Main Grid */}
+      <div className="flex-1 space-y-16">
+        <div className="max-w-xl">
+          <input 
+            type="text" placeholder="SEARCH ARCHIVE IDENTITY..."
+            value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && fetchArchives()}
+            className="w-full bg-transparent border-b border-zinc-200 py-4 text-[13px] uppercase tracking-[0.2em] focus:border-zinc-900 outline-none text-zinc-900 placeholder:text-zinc-300 font-medium"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          {archives.map(a => (
+            <Link key={a.username} to={`/profile/${a.username}`} className="p-10 border border-zinc-100 hover:border-zinc-900 transition-all flex flex-col items-center group">
+              <div className="w-16 h-16 bg-zinc-50 rounded-full mb-8 flex items-center justify-center border border-zinc-50">
+                <span className="text-[14px] font-bold text-zinc-900">@{a.username[0]}</span>
+              </div>
+              <h3 className="text-[12px] uppercase tracking-[0.2em] font-bold">@{a.username}</h3>
+              <p className="text-[9px] text-zinc-500 uppercase mt-2 tracking-widest">{a.count} ARCHIVAL UNITS</p>
+            </Link>
+          ))}
+          {loading && <div className="col-span-full text-center py-20 text-[10px] uppercase tracking-widest text-zinc-400">Loading directory...</div>}
+        </div>
       </div>
 
-      {activeTab === 'ARCHIVES' ? (
-        <div className="w-full flex flex-col items-center space-y-16">
-          <div className="w-full max-w-xl space-y-8">
-            <input 
-              type="text" placeholder="SEARCH DIRECTORY..."
-              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchArchives()}
-              className="w-full bg-transparent border-b border-zinc-100 dark:border-zinc-800 py-4 text-center text-[12px] uppercase tracking-[0.2em] focus:border-zinc-900 dark:focus:border-zinc-100 outline-none"
-            />
-            <div className="flex gap-6 justify-center">
-              {['ALL', 'FOR_SALE', 'FOR_TRADE'].map(f => (
-                <button 
-                  key={f} onClick={() => setFilter(f as any)}
-                  className={`text-[9px] uppercase tracking-widest px-4 py-1 border transition-colors ${filter === f ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900' : 'border-zinc-100 dark:border-zinc-800 text-zinc-400'}`}
-                >
-                  {f.replace('_', ' ')}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 w-full max-w-6xl">
-            {archives.map(a => (
-              <Link key={a.username} to={`/profile/${a.username}`} className="p-8 border border-zinc-50 dark:border-zinc-900 hover:border-zinc-900 dark:hover:border-zinc-100 transition-all text-center group">
-                <div className="w-16 h-16 bg-zinc-50 dark:bg-zinc-900 rounded-full mx-auto mb-6 flex items-center justify-center">
-                  <span className="text-[14px] text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">@{a.username[0]}</span>
-                </div>
-                <h3 className="text-[12px] uppercase tracking-[0.2em]">@{a.username}</h3>
-                <p className="text-[9px] text-zinc-400 uppercase mt-2">{a.count} UNITS</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="w-full max-w-4xl space-y-8">
+      {/* Right Market Feed */}
+      <aside className="hidden xl:flex flex-col w-80 space-y-10 sticky top-32 h-fit border-l border-zinc-50 pl-12">
+        <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-zinc-900 mb-6">PUBLIC MARKET</h3>
+        <div className="space-y-10">
           {tradeAds.map(ad => (
-            <div key={ad.id} className="p-10 border border-zinc-100 dark:border-zinc-900 bg-[#FDFDFD] dark:bg-zinc-950 flex flex-col space-y-6">
-              <div className="flex justify-between items-baseline">
-                <Link to={`/profile/${ad.owner?.username}`} className="text-[11px] uppercase tracking-[0.2em] font-medium hover:underline">@{ad.owner?.username}</Link>
-                <span className="text-[9px] text-zinc-300 uppercase">{new Date(ad.created_at).toLocaleDateString()}</span>
-              </div>
-              <p className="text-[13px] tracking-wide leading-relaxed">{ad.text}</p>
-              <div className="pt-4 border-t border-zinc-50 dark:border-zinc-900 flex justify-between items-center">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[9px] text-zinc-400 uppercase tracking-widest">Looking For</span>
-                  <span className="text-[11px] uppercase tracking-widest">{ad.looking_for}</span>
-                </div>
-                <Link to={`/trade/${ad.owner?.username}`} className="text-[10px] uppercase tracking-[0.2em] px-6 py-2 border border-zinc-900 dark:border-zinc-100 hover:bg-zinc-900 hover:text-white dark:hover:bg-zinc-100 dark:hover:text-zinc-900 transition-all">Submit Offer</Link>
+            <div key={ad.id} className="space-y-4 group">
+              <Link to={`/profile/${ad.owner?.username}`} className="text-[10px] font-bold uppercase tracking-widest block hover:underline">@{ad.owner?.username}</Link>
+              <p className="text-[12px] leading-relaxed text-zinc-700 font-medium">{ad.text}</p>
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-[8px] uppercase tracking-widest text-zinc-400">LF: {ad.looking_for}</span>
+                <Link to={`/trade/${ad.owner?.username}`} className="text-[9px] font-bold uppercase tracking-widest text-zinc-900 opacity-0 group-hover:opacity-100 transition-opacity underline">Offer</Link>
               </div>
             </div>
           ))}
-          {tradeAds.length === 0 && <p className="text-center py-24 text-zinc-300 uppercase tracking-widest text-[11px]">No active trade bulletins</p>}
+          <Link to="/trade-ads" className="block text-center py-4 border border-zinc-900 text-[9px] uppercase tracking-[0.3em] font-bold hover:bg-zinc-900 hover:text-white transition-all">Post Bulletin</Link>
         </div>
-      )}
+      </aside>
     </div>
   );
 };

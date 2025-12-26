@@ -15,24 +15,31 @@ export interface Item {
   public: boolean;
   for_sale: boolean;
   for_trade: boolean;
+  price?: number;
   category?: string;
   condition?: string;
   created_at: string;
 }
 
-export interface Want {
+export interface ItemHistory {
   id: string;
-  owner_id: string;
-  text: string;
+  item_id: string;
+  from_owner_id?: string;
+  to_owner_id: string;
+  event_type: string;
+  price?: number;
+  created_at: string;
+  from_profile?: Profile;
+  to_profile?: Profile;
 }
 
-export interface Friend {
+export interface Message {
   id: string;
-  requester_id: string;
+  sender_id: string;
   receiver_id: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  text: string;
   created_at: string;
-  profiles?: Profile;
+  sender?: Profile;
 }
 
 export interface Trade {
@@ -55,6 +62,17 @@ export interface PublicTradeAd {
   looking_for: string;
   created_at: string;
   owner?: Profile;
+}
+
+// Added Friend interface to resolve module member errors
+export interface Friend {
+  id: string;
+  requester_id: string;
+  receiver_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  requester?: Profile;
+  receiver?: Profile;
 }
 
 export interface UserSession {

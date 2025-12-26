@@ -14,15 +14,15 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center">
-      <nav className="fixed top-0 w-full z-50 bg-white/95 backdrop-blur-sm px-8 py-6 flex justify-between items-baseline max-w-[1600px] mx-auto border-b border-zinc-50">
-        <div className="flex gap-16 items-baseline">
-          <Link to="/" className="text-[13px] font-semibold tracking-[0.2em] uppercase text-zinc-900">
+      <nav className="fixed top-0 w-full z-50 bg-white/95 backdrop-blur-sm px-8 py-6 flex justify-between items-baseline max-w-[1600px] mx-auto border-b border-zinc-100">
+        <div className="flex gap-12 items-baseline">
+          <Link to="/" className="text-[14px] font-bold tracking-[0.25em] uppercase text-zinc-900">
             INVEN[S]TORY
           </Link>
           <div className="flex gap-8">
             <Link 
               to="/" 
-              className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/' ? 'text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-900'}`}
+              className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/' ? 'text-zinc-900 font-bold' : 'text-zinc-500 hover:text-zinc-900'}`}
             >
               EXPLORE
             </Link>
@@ -30,21 +30,21 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
               <>
                 <Link 
                   to="/my-space" 
-                  className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/my-space' ? 'text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-900'}`}
+                  className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/my-space' ? 'text-zinc-900 font-bold' : 'text-zinc-500 hover:text-zinc-900'}`}
                 >
-                  MY SPACE
-                </Link>
-                <Link 
-                  to="/friends" 
-                  className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/friends' ? 'text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-900'}`}
-                >
-                  FRIENDS
+                  SPACE
                 </Link>
                 <Link 
                   to="/inbox" 
-                  className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/inbox' ? 'text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-900'}`}
+                  className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/inbox' ? 'text-zinc-900 font-bold' : 'text-zinc-500 hover:text-zinc-900'}`}
                 >
                   INBOX
+                </Link>
+                <Link 
+                  to="/messages" 
+                  className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname.startsWith('/messages') ? 'text-zinc-900 font-bold' : 'text-zinc-500 hover:text-zinc-900'}`}
+                >
+                  DM
                 </Link>
               </>
             )}
@@ -54,21 +54,21 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         <div className="flex gap-8 items-center">
           <Link 
             to="/add" 
-            className="text-[20px] leading-none text-zinc-900 hover:opacity-70 transition-opacity"
+            className="text-[22px] leading-none text-zinc-900 hover:opacity-70 transition-opacity font-light"
           >
             +
           </Link>
           {user ? (
             <button 
               onClick={onLogout}
-              className="text-[9px] uppercase tracking-[0.3em] text-zinc-900 font-medium hover:opacity-60 transition-opacity focus:outline-none"
+              className="text-[10px] uppercase tracking-[0.3em] text-zinc-900 font-bold hover:opacity-60 transition-opacity focus:outline-none"
             >
               LOGOUT
             </button>
           ) : (
             <Link 
               to="/login" 
-              className="text-[9px] uppercase tracking-[0.3em] text-zinc-900 font-medium hover:opacity-60 transition-opacity"
+              className="text-[10px] uppercase tracking-[0.3em] text-zinc-900 font-bold hover:opacity-60 transition-opacity"
             >
               LOGIN
             </Link>
@@ -77,7 +77,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       </nav>
 
       <main className="w-full pt-32 pb-24 px-8 flex-1 flex flex-col items-center text-zinc-900">
-        <div className="w-full max-w-[1400px]">
+        <div className="w-full max-w-[1500px]">
           {children}
         </div>
       </main>

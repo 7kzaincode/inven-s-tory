@@ -10,32 +10,25 @@ YEEZY PRODUCT IMAGE TRANSFORM:
 - Output: Isolated object on white
 `;
 
+/**
+ * Processes an image using Gemini AI to isolate the product on a white background.
+ * Adheres to the @google/genai coding guidelines.
+ */
 export async function processImageWithAI(base64Image: string): Promise<string | null> {
-  // Ensure global environment is ready
-  if (typeof window !== 'undefined' && !(window as any).process) {
-    (window as any).process = { env: {} };
-  }
-
-  // Resolve API Key from multiple potential sources
-  const apiKey = (window as any).process?.env?.API_KEY || 
-                 (window as any).process?.env?.VITE_GEMINI_API_KEY || 
-                 (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-                 "";
+  // Use process.env.API_KEY directly as per SDK requirements. 
+  // This variable is assumed to be pre-configured.
+  const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
-    console.error("Gemini API_KEY not found. Ensure process.env.API_KEY is configured in your hosting provider.");
+    console.error("Critical Error: process.env.API_KEY is not defined. Archival intake failed.");
     return null;
   }
 
-  // Synchronize key into process.env to satisfy SDK requirements
-  if (typeof process !== 'undefined' && process.env) {
-    (process.env as any).API_KEY = apiKey;
-  }
-
   try {
-    // SDK Guideline: Must use the named parameter and process.env.API_KEY
-    const ai = new GoogleGenAI({ apiKey: (process.env as any).API_KEY });
+    // Initialize the SDK instance right before the call to ensure up-to-date configuration.
+    const ai = new GoogleGenAI({ apiKey });
     
+    // Using gemini-2.5-flash-image for image generation tasks.
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -53,6 +46,7 @@ export async function processImageWithAI(base64Image: string): Promise<string | 
       },
     });
 
+    // Iterate through candidates and parts to locate the processed image.
     const candidate = response.candidates?.[0];
     if (candidate?.content?.parts) {
       for (const part of candidate.content.parts) {
