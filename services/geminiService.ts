@@ -11,15 +11,23 @@ YEEZY PRODUCT IMAGE TRANSFORM:
 `;
 
 export async function processImageWithAI(base64Image: string): Promise<string | null> {
-  // Use process.env.API_KEY as mandated by the SDK instructions
-  const apiKey = (window as any).process?.env?.API_KEY;
+  // Defensive key retrieval
+  let apiKey = "";
+  try {
+    apiKey = (window as any).process?.env?.API_KEY || 
+             (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+             "";
+  } catch (e) {
+    console.warn("Could not access environment for Gemini API Key");
+  }
   
   if (!apiKey) {
-    console.error("Gemini API_KEY not found. Ensure process.env.API_KEY is configured.");
+    console.error("Gemini API_KEY not found. Ensure it is set in Vercel or your .env file.");
     return null;
   }
 
   try {
+    // Initialize inside the function to ensure we have a key
     const ai = new GoogleGenAI({ apiKey });
     
     const response = await ai.models.generateContent({
