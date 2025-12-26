@@ -1,64 +1,84 @@
+
 import { GoogleGenAI } from "@google/genai";
 
-const TRANSFORM_PROMPT = `
-YEEZY PRODUCT IMAGE TRANSFORM:
-- Pure neutral white or light grey background
-- Matte lighting, soft shadows
-- Centered floating product
-- Minimalist e-commerce catalog aesthetic
-- Remove all clutter, backgrounds, and human elements
-- Output: Isolated object on white
+const VALIDATION_PROMPT = `
+STRICT ARCHIVAL VALIDATION:
+Check if this image contains a clear, physical product or object (e.g., footwear, apparel, accessory, hardware, object).
+If the image is a person's face (selfie), a landscape, a screenshot of text, a meme, or abstract clutter, you MUST respond with ONLY the word "REJECTED".
+If it is a valid physical object, respond with ONLY the word "VALIDATED".
+`;
+
+const TRANSFORMATION_PROMPT = `
+ARCHIVAL STUDIO ISOLATION:
+- Detect the primary object in the image.
+- Remove ALL background elements, "wallpaper", and clutter perfectly.
+- Place the isolated object on a PURE #FFFFFF (absolute white) background.
+- Apply matte studio lighting with soft, natural drop shadows.
+- Ensure the object is centered and fills most of the frame.
+- Aesthetic: High-end minimalist catalog photography, neutral tones.
+- Do not add humans or limbs.
 `;
 
 /**
- * Processes an image using Gemini AI to isolate the product on a white background.
- * Adheres to the @google/genai coding guidelines.
+ * Validates and transforms an image for the archive.
  */
-export async function processImageWithAI(base64Image: string): Promise<string | null> {
-  // Use process.env.API_KEY directly as per SDK requirements. 
-  // This variable is assumed to be pre-configured.
+export async function processImageWithAI(base64Image: string): Promise<{ url: string | null; error: string | null }> {
   const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
-    console.error("Critical Error: process.env.API_KEY is not defined. Archival intake failed.");
-    return null;
+    return { url: null, error: "ARCHIVAL SIGNAL LOST: API_KEY missing." };
   }
 
   try {
-    // Initialize the SDK instance right before the call to ensure up-to-date configuration.
     const ai = new GoogleGenAI({ apiKey });
-    
-    // Using gemini-2.5-flash-image for image generation tasks.
-    const response = await ai.models.generateContent({
+    const base64Data = base64Image.split(',')[1] || base64Image;
+
+    // STAGE 1: VALIDATION
+    const validationResponse = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
+          { text: VALIDATION_PROMPT }
+        ]
+      }
+    });
+
+    const status = validationResponse.text?.trim().toUpperCase();
+    if (status === "REJECTED") {
+      return { url: null, error: "INTAKE DENIED: IMAGE DOES NOT CONTAIN A VALID ARCHIVAL OBJECT." };
+    }
+
+    // STAGE 2: TRANSFORMATION
+    const transformResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
-          {
-            inlineData: {
-              data: base64Image.split(',')[1] || base64Image,
-              mimeType: 'image/jpeg',
-            },
-          },
-          {
-            text: TRANSFORM_PROMPT,
-          },
-        ],
+          { inlineData: { data: base64Data, mimeType: 'image/jpeg' } },
+          { text: TRANSFORMATION_PROMPT }
+        ]
       },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1"
+        }
+      }
     });
 
-    // Iterate through candidates and parts to locate the processed image.
-    const candidate = response.candidates?.[0];
-    if (candidate?.content?.parts) {
-      for (const part of candidate.content.parts) {
+    if (transformResponse.candidates?.[0]?.content?.parts) {
+      for (const part of transformResponse.candidates[0].content.parts) {
         if (part.inlineData) {
-          return `data:image/png;base64,${part.inlineData.data}`;
+          return { 
+            url: `data:image/png;base64,${part.inlineData.data}`, 
+            error: null 
+          };
         }
       }
     }
 
-    return null;
-  } catch (error) {
-    console.error("Error processing image with Gemini:", error);
-    return null;
+    return { url: base64Image, error: "TRANSFORMATION BYPASS: ISOLATION FAILED, USING SOURCE." };
+  } catch (error: any) {
+    console.error("AI Intake Failure:", error);
+    return { url: null, error: "SIGNAL COLLISION: " + error.message };
   }
 }

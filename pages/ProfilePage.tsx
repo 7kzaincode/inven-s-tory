@@ -77,8 +77,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target?.result as string;
-        const normalized = await processImageWithAI(base64);
-        const blob = await (await fetch(normalized || base64)).blob();
+        // Fix: Use the url property from the AI process result or fallback to source base64
+        const result = await processImageWithAI(base64);
+        const finalUrl = result.url || base64;
+        const fetchResponse = await fetch(finalUrl);
+        const blob = await fetchResponse.blob();
+        
         const fileName = `avatars/${currentUser.id}_${Date.now()}.png`;
         const { error: uploadError } = await supabase.storage.from('inventory').upload(fileName, blob);
         if (!uploadError) {
