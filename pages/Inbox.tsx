@@ -24,39 +24,15 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
   const fetchEverything = async () => {
     setLoading(true);
     
-    // 1. Inbound Connection Requests
-    const { data: fData } = await supabase
-      .from('friends')
-      .select(`id, status, requester:profiles!friends_requester_id_fkey(id, username)`)
-      .eq('receiver_id', profile.id)
-      .eq('status', 'pending');
+    // Inbound
+    const { data: fData } = await supabase.from('friends').select(`id, status, requester:profiles!friends_requester_id_fkey(id, username)`).eq('receiver_id', profile.id).eq('status', 'pending');
+    const { data: tData } = await supabase.from('trades').select(`id, status, sender_id, receiver_id, sender_items, receiver_items, created_at, sender:profiles!trades_sender_id_fkey(id, username)`).eq('receiver_id', profile.id).eq('status', 'pending');
 
-    // 2. Inbound Trades
-    const { data: tData } = await supabase
-      .from('trades')
-      .select(`
-        id, status, sender_id, receiver_id, sender_items, receiver_items, created_at,
-        sender:profiles!trades_sender_id_fkey(id, username)
-      `)
-      .eq('receiver_id', profile.id)
-      .eq('status', 'pending');
+    // Outbound
+    const { data: sData } = await supabase.from('trades').select(`id, status, sender_id, receiver_id, sender_items, receiver_items, created_at, receiver:profiles!trades_receiver_id_fkey(id, username)`).eq('sender_id', profile.id).eq('status', 'pending');
 
-    // 3. Outbound Trades
-    const { data: sData } = await supabase
-      .from('trades')
-      .select(`
-        id, status, sender_id, receiver_id, sender_items, receiver_items, created_at,
-        receiver:profiles!trades_receiver_id_fkey(id, username)
-      `)
-      .eq('sender_id', profile.id)
-      .eq('status', 'pending');
-
-    // 4. My Bulletins
-    const { data: bData } = await supabase
-      .from('trade_ads')
-      .select('*')
-      .eq('owner_id', profile.id)
-      .order('created_at', { ascending: false });
+    // Bulletins
+    const { data: bData } = await supabase.from('trade_ads').select('*').eq('owner_id', profile.id).order('created_at', { ascending: false });
 
     if (fData) setFriendRequests(fData);
     if (tData) setTradeRequests(tData);
@@ -73,11 +49,21 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
       if (error) throw error;
       setViewingTrade(null);
       fetchEverything();
-      alert("HANDSHAKE SUCCESSFUL. ARCHIVES SYNCHRONIZED.");
+      alert("HANDSHAKE SUCCESSFUL. CONFLICTING PROPOSALS HAVE BEEN PURGED.");
     } catch (e: any) {
       alert("TRANSFER ERROR: " + e.message);
     } finally {
       setExecuting(false);
+    }
+  };
+
+  const declineTrade = async (tradeId: string) => {
+    if (!window.confirm("DECLINE THIS PROPOSAL?")) return;
+    const { error } = await supabase.from('trades').update({ status: 'declined' }).eq('id', tradeId);
+    if (error) alert("Action failed: " + error.message);
+    else {
+      setViewingTrade(null);
+      fetchEverything();
     }
   };
 
@@ -112,8 +98,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
           { id: 'bulletins', label: 'MY BULLETINS', count: myBulletins.length }
         ].map(tab => (
           <button 
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            key={tab.id} onClick={() => setActiveTab(tab.id as any)}
             className={`text-[11px] uppercase tracking-[0.4em] font-bold transition-all px-4 py-2 ${activeTab === tab.id ? 'text-zinc-900 border-b-2 border-zinc-900' : 'text-zinc-300'}`}
           >
             {tab.label} ({tab.count})
@@ -142,7 +127,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                   <button className="text-[10px] uppercase bg-zinc-900 text-white px-8 py-3 font-bold">INSPECT</button>
                 </div>
               ))}
-              {tradeRequests.length === 0 && friendRequests.length === 0 && <p className="text-center py-20 text-[9px] uppercase tracking-widest text-zinc-200">No inbound activity</p>}
+              {tradeRequests.length === 0 && friendRequests.length === 0 && <p className="text-center py-20 text-[9px] uppercase tracking-widest text-zinc-200 font-bold italic">Archive quiet</p>}
             </div>
           </>
         )}
@@ -154,11 +139,11 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                 <span className="text-[14px] uppercase font-bold tracking-widest">PROPOSAL TO @{trade.receiver.username}</span>
                 <div className="flex gap-4">
                   <button onClick={() => openTradeDetails(trade)} className="text-[10px] uppercase border border-zinc-900 px-6 py-2 font-bold">Review</button>
-                  <button onClick={() => cancelTrade(trade.id)} className="text-[10px] uppercase text-red-400 px-6 py-2 font-bold hover:text-red-600 transition-all">Cancel</button>
+                  <button onClick={() => cancelTrade(trade.id)} className="text-[10px] uppercase text-red-400 px-6 py-2 font-bold hover:text-red-600">Cancel</button>
                 </div>
               </div>
             ))}
-            {sentTrades.length === 0 && <p className="text-center py-20 text-[9px] uppercase tracking-widest text-zinc-200">No outbound proposals</p>}
+            {sentTrades.length === 0 && <p className="text-center py-20 text-[9px] uppercase tracking-widest text-zinc-200 font-bold italic">No outbound requests</p>}
           </div>
         )}
 
@@ -176,7 +161,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                 </div>
               </div>
             ))}
-            {myBulletins.length === 0 && <div className="col-span-full text-center py-20 text-[9px] uppercase tracking-widest text-zinc-200">No active market bulletins</div>}
+            {myBulletins.length === 0 && <div className="col-span-full text-center py-20 text-[9px] uppercase tracking-widest text-zinc-200 font-bold italic">No active bulletins</div>}
           </div>
         )}
       </div>
@@ -194,7 +179,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                 <h4 className="text-[10px] uppercase font-bold tracking-widest border-b border-zinc-100 pb-3">OFFERING</h4>
                 <div className="grid grid-cols-3 gap-4">
                   {viewingTrade.senderItemsData?.map((it: any) => (
-                    <div key={it.id} className="aspect-square bg-zinc-50 p-4 border border-zinc-100"><img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply" /></div>
+                    <div key={it.id} className="aspect-square bg-zinc-50 p-4 border border-zinc-100 shadow-sm"><img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply" /></div>
                   ))}
                 </div>
               </div>
@@ -202,23 +187,35 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                 <h4 className="text-[10px] uppercase font-bold tracking-widest border-b border-zinc-100 pb-3">REQUESTING</h4>
                 <div className="grid grid-cols-3 gap-4">
                   {viewingTrade.receiverItemsData?.map((it: any) => (
-                    <div key={it.id} className="aspect-square bg-zinc-50 p-4 border border-zinc-100"><img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply" /></div>
+                    <div key={it.id} className="aspect-square bg-zinc-50 p-4 border border-zinc-100 shadow-sm"><img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply" /></div>
                   ))}
                 </div>
               </div>
             </div>
 
             <div className="flex flex-col gap-6 w-full max-w-lg">
-              {activeTab === 'received' && (
-                <button 
-                  onClick={() => executeTrade(viewingTrade)} 
-                  disabled={executing}
-                  className="w-full py-7 bg-zinc-900 text-white text-[12px] font-bold uppercase tracking-[0.4em] hover:bg-black transition-all"
-                >
-                  {executing ? 'HANDSHAKING...' : 'FINALIZE EXCHANGE'}
-                </button>
+              {activeTab === 'received' ? (
+                <div className="grid grid-cols-2 gap-4 w-full">
+                  <button 
+                    onClick={() => executeTrade(viewingTrade)} 
+                    disabled={executing}
+                    className="py-7 bg-zinc-900 text-white text-[12px] font-bold uppercase tracking-[0.4em] hover:bg-black transition-all shadow-xl"
+                  >
+                    {executing ? 'FINALIZING...' : 'ACCEPT'}
+                  </button>
+                  <button 
+                    onClick={() => declineTrade(viewingTrade.id)}
+                    className="py-7 border border-red-200 text-red-500 text-[12px] font-bold uppercase tracking-[0.4em] hover:bg-red-50 transition-all"
+                  >
+                    DECLINE
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setViewingTrade(null)} className="w-full py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-widest">Back</button>
               )}
-              <button onClick={() => setViewingTrade(null)} className="w-full py-5 border border-zinc-900 text-[11px] font-bold uppercase">Back</button>
+              {activeTab === 'received' && (
+                <button onClick={() => setViewingTrade(null)} className="w-full py-4 text-[10px] font-bold uppercase tracking-widest text-zinc-300">Dismiss View</button>
+              )}
             </div>
           </div>
         </div>

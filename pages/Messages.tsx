@@ -43,12 +43,17 @@ const Messages: React.FC = () => {
           event: 'INSERT', 
           schema: 'public', 
           table: 'messages',
-          filter: `or(and(sender_id.eq.${targetUserId},receiver_id.eq.${currentUserId}),and(sender_id.eq.${currentUserId},receiver_id.eq.${targetUserId}))`
+          // Listen for any message involving these two users
+          filter: `receiver_id=eq.${currentUserId}`
         }, (payload) => {
-          setMessages(prev => {
-            if (prev.find(m => m.id === payload.new.id)) return prev;
-            return [...prev, payload.new as Message];
-          });
+          const newMsg = payload.new as Message;
+          // Only add if it's from the person we're talking to right now
+          if (newMsg.sender_id === targetUserId) {
+            setMessages(prev => {
+              if (prev.find(m => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+          }
         })
         .on('presence', { event: 'sync' }, () => {
           const state = channel.presenceState();
@@ -118,10 +123,21 @@ const Messages: React.FC = () => {
     e?.preventDefault();
     if (!inputText.trim() || !selectedUser || !currentUserId || isSending) return;
 
-    setIsSending(true);
     const msgText = inputText;
     setInputText(''); 
 
+    // Optimistic Update: Add message immediately to the UI
+    const tempId = crypto.randomUUID();
+    const optimisticMsg: Message = {
+      id: tempId,
+      sender_id: currentUserId,
+      receiver_id: selectedUser.id,
+      text: msgText,
+      created_at: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
+    setIsSending(true);
     const { data, error } = await supabase
       .from('messages')
       .insert({
@@ -133,9 +149,17 @@ const Messages: React.FC = () => {
       .single();
 
     if (error) {
+      // Revert optimistic update on failure
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       console.error("Signal failure:", error);
       alert("SIGNAL FAILURE: " + error.message);
       setInputText(msgText); 
+    } else if (data) {
+      // Replace optimistic message with the real one from the server
+      setMessages(prev => prev.map(m => m.id === tempId ? data : m));
+      if (!conversations.find(c => c.id === selectedUser.id)) {
+        setConversations(prev => [selectedUser, ...prev]);
+      }
     }
     setIsSending(false);
   };
@@ -150,7 +174,7 @@ const Messages: React.FC = () => {
           {conversations.map(c => (
             <Link 
               key={c.id} to={`/messages/${c.id}`}
-              className={`w-full flex items-center gap-4 p-5 border transition-all duration-500 ${selectedUser?.id === c.id ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-50 hover:bg-zinc-50'}`}
+              className={`w-full flex items-center gap-4 p-5 border transition-all duration-500 ${selectedUser?.id === c.id ? 'border-zinc-900 bg-zinc-900 text-white shadow-xl' : 'border-zinc-50 hover:bg-zinc-50'}`}
             >
               <div className="w-8 h-8 rounded-full border border-zinc-100 bg-zinc-50 overflow-hidden flex-shrink-0">
                 {c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-300 font-bold">@</div>}
@@ -158,6 +182,7 @@ const Messages: React.FC = () => {
               <span className="text-[12px] font-bold uppercase tracking-widest truncate">@{c.username}</span>
             </Link>
           ))}
+          {conversations.length === 0 && <p className="text-[9px] uppercase tracking-widest text-zinc-300 italic py-10 font-bold">No active links</p>}
         </div>
       </aside>
 
@@ -166,7 +191,7 @@ const Messages: React.FC = () => {
           <>
             <header className="px-10 py-7 border-b border-zinc-100 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-10">
               <div className="flex items-center gap-5">
-                <div className="w-12 h-12 rounded-full border border-zinc-100 bg-zinc-50 overflow-hidden">
+                <div className="w-12 h-12 rounded-full border border-zinc-100 bg-zinc-50 overflow-hidden shadow-inner">
                   {selectedUser.avatar_url && <img src={selectedUser.avatar_url} className="w-full h-full object-cover" />}
                 </div>
                 <div className="flex flex-col">
@@ -200,14 +225,14 @@ const Messages: React.FC = () => {
                 onChange={e => { setInputText(e.target.value); handleTyping(); }}
                 placeholder="PROPOSE DIALOGUE..."
                 className="flex-1 bg-zinc-50 text-[13px] uppercase tracking-widest font-bold outline-none border border-zinc-100 px-8 py-6 focus:border-zinc-900 focus:bg-white transition-all shadow-inner"
-                disabled={isSending}
+                autoComplete="off"
               />
               <button 
                 type="submit"
                 disabled={!inputText.trim() || isSending}
-                className="px-12 py-6 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl"
+                className="px-12 py-6 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl active:scale-95"
               >
-                {isSending ? '...' : 'Send'}
+                Send
               </button>
             </form>
           </>
@@ -215,7 +240,7 @@ const Messages: React.FC = () => {
           <div className="flex-1 flex flex-col items-center justify-center text-zinc-300 space-y-6">
              <div className="text-center space-y-2">
                <span className="text-[12px] uppercase tracking-[0.6em] font-bold text-zinc-400 block">ENCRYPTION ACTIVE</span>
-               <span className="text-[9px] uppercase tracking-[0.4em] font-bold text-zinc-200 block">Select a link to initiate sync</span>
+               <span className="text-[9px] uppercase tracking-[0.4em] font-bold text-zinc-200 block">Establish link to initiate sync</span>
              </div>
           </div>
         )}
