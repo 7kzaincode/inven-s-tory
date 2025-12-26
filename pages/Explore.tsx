@@ -43,7 +43,12 @@ const Explore: React.FC = () => {
   };
 
   const fetchTradeAds = async () => {
-    const { data } = await supabase.from('trade_ads').select('*, owner:profiles(*)').order('created_at', { ascending: false }).limit(10);
+    const { data } = await supabase
+      .from('trade_ads')
+      .select('*, owner:profiles(*)')
+      .order('created_at', { ascending: false })
+      .limit(10);
+      
     if (data) {
       const enrichedAds = await Promise.all(data.map(async (ad) => {
         const { data: items } = await supabase.from('items').select('*').in('id', ad.offering_ids || []);

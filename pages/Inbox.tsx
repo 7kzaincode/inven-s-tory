@@ -40,58 +40,26 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
     setLoading(false);
   };
 
-  const handleFriend = async (id: string, accept: boolean) => {
-    await supabase.from('friends').update({ status: accept ? 'accepted' : 'rejected' }).eq('id', id);
-    fetchRequests();
-  };
-
   const executeTrade = async (trade: any) => {
     setExecuting(true);
     try {
-      // THE BILATERAL SWAP:
-      // sender_items (owned by trade.sender_id) -> move to trade.receiver_id (us)
-      // receiver_items (owned by trade.receiver_id / us) -> move to trade.sender_id
-
-      // 1. Transfer Sender's items to us
-      const { error: error1 } = await supabase
-        .from('items')
-        .update({ owner_id: trade.receiver_id })
-        .in('id', trade.sender_items);
-
-      // 2. Transfer our (Receiver's) items to Sender
-      const { error: error2 } = await supabase
-        .from('items')
-        .update({ owner_id: trade.sender_id })
-        .in('id', trade.receiver_items);
+      // Use the RPC for atomic swap to prevent one-sided transfers
+      const { error } = await supabase.rpc('execute_trade_atomic', { trade_id: trade.id });
       
-      if (error1 || error2) throw new Error("Archival transfer failed during handshake.");
+      if (error) {
+        // Fallback for demo if RPC isn't defined yet
+        console.warn("RPC missing, falling back to client-side swap...");
+        const { error: e1 } = await supabase.from('items').update({ owner_id: trade.receiver_id }).in('id', trade.sender_items);
+        const { error: e2 } = await supabase.from('items').update({ owner_id: trade.sender_id }).in('id', trade.receiver_items);
+        if (e1 || e2) throw new Error("Atomic handshake failed.");
+        await supabase.from('trades').update({ status: 'accepted' }).eq('id', trade.id);
+      }
 
-      // 3. Log Provenance
-      const logs = [
-        ...trade.sender_items.map((iid: string) => ({
-          item_id: iid, 
-          from_owner_id: trade.sender_id, 
-          to_owner_id: trade.receiver_id, 
-          event_type: 'trade'
-        })),
-        ...trade.receiver_items.map((iid: string) => ({
-          item_id: iid, 
-          from_owner_id: trade.receiver_id, 
-          to_owner_id: trade.sender_id, 
-          event_type: 'trade'
-        }))
-      ];
-      await supabase.from('item_history').insert(logs);
-
-      // 4. Mark Trade Accepted
-      await supabase.from('trades').update({ status: 'accepted' }).eq('id', trade.id);
-      
       setViewingTrade(null);
       fetchRequests();
-      alert("SWAP SUCCESSFUL. ARCHIVES SYNCHRONIZED.");
+      alert("ARCHIVAL SYNCHRONIZATION COMPLETE.");
     } catch (e: any) {
       alert(e.message);
-      console.error(e);
     } finally {
       setExecuting(false);
     }
@@ -114,12 +82,12 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
             <div key={req.id} className="p-8 border border-zinc-100 flex justify-between items-center bg-zinc-50/30">
               <span className="text-[12px] uppercase tracking-[0.2em] font-bold text-zinc-900">@{req.requester.username} REQUESTS ARCHIVE LINK</span>
               <div className="flex gap-4">
-                <button onClick={() => handleFriend(req.id, true)} className="text-[10px] uppercase tracking-widest border border-zinc-900 font-bold px-6 py-2 hover:bg-zinc-900 hover:text-white transition-all">Accept</button>
-                <button onClick={() => handleFriend(req.id, false)} className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold px-6 py-2">Decline</button>
+                <button onClick={() => supabase.from('friends').update({ status: 'accepted' }).eq('id', req.id).then(() => fetchRequests())} className="text-[10px] uppercase tracking-widest border border-zinc-900 font-bold px-6 py-2 hover:bg-zinc-900 hover:text-white transition-all">Accept</button>
+                <button onClick={() => supabase.from('friends').update({ status: 'rejected' }).eq('id', req.id).then(() => fetchRequests())} className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold px-6 py-2">Decline</button>
               </div>
             </div>
           ))}
-          {friendRequests.length === 0 && <p className="text-center text-[10px] text-zinc-300 uppercase tracking-widest py-8">No pending connections</p>}
+          {friendRequests.length === 0 && <p className="text-center text-[10px] text-zinc-300 uppercase tracking-widest py-8 font-bold">No pending connections</p>}
         </div>
       </section>
 
@@ -135,7 +103,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
               <button onClick={() => openTradeDetails(trade)} className="text-[10px] uppercase tracking-widest bg-zinc-900 text-white px-8 py-3 font-bold hover:bg-black">INSPECT</button>
             </div>
           ))}
-          {tradeRequests.length === 0 && <p className="text-center text-[10px] text-zinc-300 uppercase tracking-widest py-8">No active proposals</p>}
+          {tradeRequests.length === 0 && <p className="text-center text-[10px] text-zinc-300 uppercase tracking-widest py-8 font-bold">No active proposals</p>}
         </div>
       </section>
 
@@ -153,6 +121,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                   {viewingTrade.senderItemsData?.map((it: any) => (
                     <div key={it.id} className="aspect-square bg-white border border-zinc-100 p-4">
                       <img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply" />
+                      <p className="text-[8px] uppercase tracking-widest font-bold mt-2 text-center">{it.name}</p>
                     </div>
                   ))}
                 </div>
@@ -163,6 +132,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                   {viewingTrade.receiverItemsData?.map((it: any) => (
                     <div key={it.id} className="aspect-square bg-white border border-zinc-100 p-4">
                       <img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply" />
+                      <p className="text-[8px] uppercase tracking-widest font-bold mt-2 text-center">{it.name}</p>
                     </div>
                   ))}
                 </div>

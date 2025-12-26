@@ -34,7 +34,6 @@ const Messages: React.FC = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    // Get unique people I've talked to
     const { data: sent } = await supabase.from('messages').select('receiver_id').eq('sender_id', session.user.id);
     const { data: received } = await supabase.from('messages').select('sender_id').eq('receiver_id', session.user.id);
 
@@ -64,8 +63,8 @@ const Messages: React.FC = () => {
     if (data) setMessages(data as Message[]);
   };
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const sendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!inputText.trim() || !selectedUser) return;
 
     const { data: { session } } = await supabase.auth.getSession();
@@ -82,7 +81,6 @@ const Messages: React.FC = () => {
     if (!error && data) {
       setMessages([...messages, data as Message]);
       setInputText('');
-      // Update conversations list if new
       if (!conversations.find(c => c.id === selectedUser.id)) {
         setConversations([selectedUser, ...conversations]);
       }
@@ -93,7 +91,6 @@ const Messages: React.FC = () => {
 
   return (
     <div className="flex w-full h-[75vh] gap-12">
-      {/* Conversation Sidebar */}
       <aside className="w-80 border-r border-zinc-100 pr-12 space-y-10 overflow-y-auto">
         <h3 className="text-[11px] uppercase tracking-[0.4em] font-bold text-zinc-900 sticky top-0 bg-white pb-6">ACTIVE CHANNELS</h3>
         <div className="space-y-4">
@@ -105,29 +102,26 @@ const Messages: React.FC = () => {
               <div className="w-8 h-8 rounded-full border border-zinc-100 bg-zinc-50 overflow-hidden flex-shrink-0">
                 {c.avatar_url && <img src={c.avatar_url} className="w-full h-full object-cover" />}
               </div>
-              <div className="flex flex-col">
-                <span className="text-[12px] font-bold uppercase tracking-widest truncate max-w-[140px]">@{c.username}</span>
-              </div>
+              <span className="text-[12px] font-bold uppercase tracking-widest truncate max-w-[140px]">@{c.username}</span>
             </Link>
           ))}
           {conversations.length === 0 && <p className="text-[9px] uppercase tracking-widest text-zinc-300 italic">No archival chatter found</p>}
         </div>
       </aside>
 
-      {/* Main Chat Interface */}
       <div className="flex-1 flex flex-col bg-white border border-zinc-100 shadow-sm">
         {selectedUser ? (
           <>
             <header className="px-8 py-6 border-b border-zinc-100 flex justify-between items-center bg-white sticky top-0 z-10">
-              <Link to={`/profile/${selectedUser.username}`} className="flex items-center gap-4 hover:opacity-70 transition-opacity">
+              <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full border border-zinc-100 bg-zinc-50 overflow-hidden">
                   {selectedUser.avatar_url && <img src={selectedUser.avatar_url} className="w-full h-full object-cover" />}
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[14px] font-bold uppercase tracking-widest">@{selectedUser.username}</span>
-                  <span className="text-[8px] uppercase tracking-widest text-zinc-400">Secure Channel</span>
+                  <span className="text-[8px] uppercase tracking-widest text-zinc-400 font-bold">Secure Channel</span>
                 </div>
-              </Link>
+              </div>
             </header>
             
             <div className="flex-1 overflow-y-auto p-12 space-y-12 bg-zinc-50/20">
@@ -147,12 +141,19 @@ const Messages: React.FC = () => {
               <div ref={scrollRef} />
             </div>
 
-            <form onSubmit={sendMessage} className="p-8 border-t border-zinc-100 bg-white">
+            <form onSubmit={sendMessage} className="p-8 border-t border-zinc-100 bg-white flex gap-4">
               <input 
                 value={inputText} onChange={e => setInputText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                 placeholder="PROPOSE DIALOGUE..."
-                className="w-full bg-zinc-50 text-[13px] uppercase tracking-widest font-bold outline-none border border-zinc-100 p-6 focus:border-zinc-900 focus:bg-white transition-all shadow-inner"
+                className="flex-1 bg-zinc-50 text-[13px] uppercase tracking-widest font-bold outline-none border border-zinc-100 p-6 focus:border-zinc-900 focus:bg-white transition-all"
               />
+              <button 
+                type="submit"
+                className="px-10 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-colors"
+              >
+                Send
+              </button>
             </form>
           </>
         ) : (
