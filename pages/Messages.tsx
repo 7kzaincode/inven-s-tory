@@ -34,7 +34,11 @@ const Messages: React.FC = () => {
     if (targetUserId && currentUserId) {
       fetchUserAndMessages(targetUserId);
       
-      const channel = supabase.channel(`room:${targetUserId}`, {
+      // DETERMINISTIC CHANNEL NAME: Shared by both users
+      const sortedIds = [currentUserId, targetUserId].sort();
+      const channelId = `convo:${sortedIds[0]}_${sortedIds[1]}`;
+      
+      const channel = supabase.channel(channelId, {
         config: { presence: { key: currentUserId } }
       });
 
@@ -42,13 +46,15 @@ const Messages: React.FC = () => {
         .on('postgres_changes', { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'messages',
-          // Listen for any message involving these two users
-          filter: `receiver_id=eq.${currentUserId}`
+          table: 'messages'
         }, (payload) => {
           const newMsg = payload.new as Message;
-          // Only add if it's from the person we're talking to right now
-          if (newMsg.sender_id === targetUserId) {
+          // Only process messages for this specific conversation
+          const isRelevant = 
+            (newMsg.sender_id === targetUserId && newMsg.receiver_id === currentUserId) ||
+            (newMsg.sender_id === currentUserId && newMsg.receiver_id === targetUserId);
+
+          if (isRelevant) {
             setMessages(prev => {
               if (prev.find(m => m.id === newMsg.id)) return prev;
               return [...prev, newMsg];
@@ -60,7 +66,7 @@ const Messages: React.FC = () => {
           setTargetOnline(!!state[targetUserId]);
         })
         .on('broadcast', { event: 'typing' }, ({ payload }) => {
-          if (payload.typing) {
+          if (payload.userId === targetUserId && payload.typing) {
             setIsTyping(true);
             setTimeout(() => setIsTyping(false), 3000);
           }
@@ -82,11 +88,14 @@ const Messages: React.FC = () => {
   }, [messages]);
 
   const handleTyping = () => {
-    if (!targetUserId) return;
-    supabase.channel(`room:${targetUserId}`).send({
+    if (!targetUserId || !currentUserId) return;
+    const sortedIds = [currentUserId, targetUserId].sort();
+    const channelId = `convo:${sortedIds[0]}_${sortedIds[1]}`;
+    
+    supabase.channel(channelId).send({
       type: 'broadcast',
       event: 'typing',
-      payload: { typing: true }
+      payload: { typing: true, userId: currentUserId }
     });
   };
 
@@ -149,13 +158,10 @@ const Messages: React.FC = () => {
       .single();
 
     if (error) {
-      // Revert optimistic update on failure
       setMessages(prev => prev.filter(m => m.id !== tempId));
-      console.error("Signal failure:", error);
       alert("SIGNAL FAILURE: " + error.message);
       setInputText(msgText); 
     } else if (data) {
-      // Replace optimistic message with the real one from the server
       setMessages(prev => prev.map(m => m.id === tempId ? data : m));
       if (!conversations.find(c => c.id === selectedUser.id)) {
         setConversations(prev => [selectedUser, ...prev]);
@@ -174,7 +180,7 @@ const Messages: React.FC = () => {
           {conversations.map(c => (
             <Link 
               key={c.id} to={`/messages/${c.id}`}
-              className={`w-full flex items-center gap-4 p-5 border transition-all duration-500 ${selectedUser?.id === c.id ? 'border-zinc-900 bg-zinc-900 text-white shadow-xl' : 'border-zinc-50 hover:bg-zinc-50'}`}
+              className={`w-full flex items-center gap-4 p-5 border transition-all duration-500 ${selectedUser?.id === c.id ? 'border-zinc-900 bg-zinc-900 text-white shadow-xl scale-[1.02]' : 'border-zinc-50 hover:bg-zinc-50'}`}
             >
               <div className="w-8 h-8 rounded-full border border-zinc-100 bg-zinc-50 overflow-hidden flex-shrink-0">
                 {c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-300 font-bold">@</div>}
@@ -182,7 +188,7 @@ const Messages: React.FC = () => {
               <span className="text-[12px] font-bold uppercase tracking-widest truncate">@{c.username}</span>
             </Link>
           ))}
-          {conversations.length === 0 && <p className="text-[9px] uppercase tracking-widest text-zinc-300 italic py-10 font-bold">No active links</p>}
+          {conversations.length === 0 && <p className="text-[9px] uppercase tracking-widest text-zinc-300 italic py-10 font-bold">No established connections</p>}
         </div>
       </aside>
 
@@ -198,11 +204,11 @@ const Messages: React.FC = () => {
                   <span className="text-[15px] font-bold uppercase tracking-[0.2em] text-zinc-900">@{selectedUser.username}</span>
                   <div className="flex items-center gap-2">
                     <div className={`w-1.5 h-1.5 rounded-full ${targetOnline ? 'bg-green-500 animate-pulse' : 'bg-zinc-200'}`} />
-                    <span className="text-[8px] uppercase tracking-widest text-zinc-400 font-bold">{targetOnline ? 'ACTIVE NOW' : 'OFFLINE'}</span>
+                    <span className="text-[8px] uppercase tracking-widest text-zinc-400 font-bold">{targetOnline ? 'CONNECTED' : 'STANDBY'}</span>
                   </div>
                 </div>
               </div>
-              {isTyping && <span className="text-[9px] uppercase tracking-[0.3em] font-bold text-zinc-400 animate-pulse">Typing...</span>}
+              {isTyping && <span className="text-[9px] uppercase tracking-[0.3em] font-bold text-zinc-400 animate-pulse">Synchronizing thoughts...</span>}
             </header>
             
             <div className="flex-1 overflow-y-auto p-12 space-y-10 bg-[#FAFAFA]">
@@ -213,6 +219,9 @@ const Messages: React.FC = () => {
                     <div className={`max-w-[65%] p-7 text-[14px] font-medium leading-relaxed tracking-wide shadow-sm ${isMe ? 'bg-zinc-900 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-white border border-zinc-100 text-zinc-900 rounded-r-2xl rounded-tl-2xl'}`}>
                       {m.text}
                     </div>
+                    <span className="mt-2 text-[8px] uppercase font-bold text-zinc-300 tracking-widest">
+                      {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
                 );
               })}
