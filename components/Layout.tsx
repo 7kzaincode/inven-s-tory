@@ -19,19 +19,35 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
           <Link to="/" className="text-[13px] font-medium tracking-[0.2em] uppercase">
             INVEN[S]TORY
           </Link>
-          <div className="flex gap-10">
+          <div className="flex gap-8">
             <Link 
               to="/" 
               className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/' ? 'text-black' : 'text-gray-400 hover:text-black'}`}
             >
               EXPLORE
             </Link>
-            <Link 
-              to="/my-space" 
-              className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/my-space' ? 'text-black' : 'text-gray-400 hover:text-black'}`}
-            >
-              MY SPACE
-            </Link>
+            {user && (
+              <>
+                <Link 
+                  to="/my-space" 
+                  className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/my-space' ? 'text-black' : 'text-gray-400 hover:text-black'}`}
+                >
+                  MY SPACE
+                </Link>
+                <Link 
+                  to="/friends" 
+                  className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/friends' ? 'text-black' : 'text-gray-400 hover:text-black'}`}
+                >
+                  FRIENDS
+                </Link>
+                <Link 
+                  to="/inbox" 
+                  className={`text-[11px] uppercase tracking-[0.15em] transition-colors duration-300 ${location.pathname === '/inbox' ? 'text-black' : 'text-gray-400 hover:text-black'}`}
+                >
+                  INBOX
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -45,17 +61,16 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
           {user ? (
             <button 
               onClick={onLogout}
-              className="text-[16px] leading-none text-gray-400 hover:text-black transition-colors focus:outline-none"
-              title="Logout"
+              className="text-[9px] uppercase tracking-[0.3em] text-gray-400 hover:text-black transition-colors focus:outline-none"
             >
-              <span className="rotate-45 block">⟲</span>
+              LOGOUT
             </button>
           ) : (
             <Link 
               to="/login" 
-              className="text-[16px] leading-none text-gray-400 hover:text-black transition-colors"
+              className="text-[9px] uppercase tracking-[0.3em] text-gray-400 hover:text-black transition-colors"
             >
-              <span className="rotate-45 block">⟲</span>
+              LOGIN
             </Link>
           )}
         </div>

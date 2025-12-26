@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
 
@@ -16,13 +17,13 @@ const Login: React.FC = () => {
 
     try {
       if (isSignUp) {
-        // Sign up logic - The profile is now created by a DB trigger automatically!
+        // We pass 'username' in data so the DB trigger can extract it
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              username: username // Metadata can be used by triggers if needed
+              username: username.replace('@', '').trim() // Clean the username
             }
           }
         });
@@ -30,10 +31,8 @@ const Login: React.FC = () => {
         if (signUpError) {
           setError(signUpError.message);
         } else if (data.user) {
-          // If "Confirm Email" is disabled, they are logged in. 
-          // If enabled, they need to check email.
           if (!data.session) {
-            setError("Success! Please check your email to confirm your archive.");
+            setError("Success. Check email to confirm your archive identity.");
           }
         }
       } else {
@@ -44,7 +43,7 @@ const Login: React.FC = () => {
         if (signInError) setError(signInError.message);
       }
     } catch (err: any) {
-      setError("Archive connection failed. Please check your network.");
+      setError("Connection failed. Check network status.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -54,7 +53,7 @@ const Login: React.FC = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] w-full max-w-sm mx-auto">
       <h1 className="text-[14px] uppercase tracking-[0.4em] mb-16 text-center">
-        {isSignUp ? 'CREATE ARCHIVE' : 'ACCESS ARCHIVE'}
+        {isSignUp ? 'REGISTER IDENTITY' : 'ACCESS ARCHIVE'}
       </h1>
       
       <form onSubmit={handleAuth} className="w-full flex flex-col space-y-8">
@@ -107,7 +106,7 @@ const Login: React.FC = () => {
           disabled={loading}
           className="w-full py-6 border border-black text-[11px] uppercase tracking-[0.4em] hover:bg-black hover:text-white transition-all duration-300 disabled:opacity-30"
         >
-          {loading ? 'PROCESSING...' : isSignUp ? 'CREATE' : 'ENTER'}
+          {loading ? 'PROCESSING...' : isSignUp ? 'CREATE ARCHIVE' : 'OPEN ARCHIVE'}
         </button>
 
         <button 
@@ -115,7 +114,7 @@ const Login: React.FC = () => {
           onClick={() => setIsSignUp(!isSignUp)}
           className="text-[10px] uppercase tracking-[0.2em] text-gray-400 hover:text-black transition-colors"
         >
-          {isSignUp ? 'Already have an archive? Login' : 'Need an archive? Sign Up'}
+          {isSignUp ? 'Already registered? Login' : 'Need to register? Sign Up'}
         </button>
       </form>
     </div>

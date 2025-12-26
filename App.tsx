@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -7,6 +8,9 @@ import AddItem from './pages/AddItem';
 import Login from './pages/Login';
 import ProfilePage from './pages/ProfilePage';
 import ItemDetail from './pages/ItemDetail';
+import Friends from './pages/Friends';
+import Inbox from './pages/Inbox';
+import TradeBuilder from './pages/TradeBuilder';
 import { UserSession, Profile } from './types';
 import { supabase } from './services/supabase';
 
@@ -18,7 +22,6 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initial session check
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         if (session) {
@@ -26,13 +29,8 @@ const App: React.FC = () => {
         } else {
           setLoading(false);
         }
-      })
-      .catch((err) => {
-        console.error("Auth initialization failed:", err);
-        setLoading(false);
       });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         fetchProfile(session.user.id, session.user.email!);
@@ -99,7 +97,19 @@ const App: React.FC = () => {
             path="/add" 
             element={session.user ? <AddItem ownerId={session.user.id} /> : <Navigate to="/login" replace />} 
           />
-          <Route path="/profile/:username" element={<ProfilePage />} />
+          <Route 
+            path="/friends" 
+            element={session.user ? <Friends profile={session.profile!} /> : <Navigate to="/login" replace />} 
+          />
+          <Route 
+            path="/inbox" 
+            element={session.user ? <Inbox profile={session.profile!} /> : <Navigate to="/login" replace />} 
+          />
+          <Route 
+            path="/trade/:username" 
+            element={session.user ? <TradeBuilder currentUser={session.profile!} /> : <Navigate to="/login" replace />} 
+          />
+          <Route path="/profile/:username" element={<ProfilePage currentUser={session.profile} />} />
           <Route path="/item/:id" element={<ItemDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

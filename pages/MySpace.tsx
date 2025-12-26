@@ -39,8 +39,8 @@ const MySpace: React.FC<MySpaceProps> = ({ profile }) => {
   return (
     <div className="flex flex-col items-center w-full">
       <header className="w-full mb-32 flex flex-col items-center">
-        <h1 className="text-[18px] uppercase tracking-[0.4em] font-light mb-2">@{profile.username}</h1>
-        <p className="text-[10px] text-gray-400 uppercase tracking-[0.2em]">{items.length} ARCHIVED ITEMS</p>
+        <h1 className="text-[22px] uppercase tracking-[0.4em] font-light mb-2">@{profile.username}</h1>
+        <p className="text-[10px] text-gray-400 uppercase tracking-[0.2em] border-t border-gray-100 pt-4 px-8">{items.length} ARCHIVAL UNITS INDEXED</p>
       </header>
 
       <div className="w-full mb-32">
@@ -54,7 +54,7 @@ const MySpace: React.FC<MySpaceProps> = ({ profile }) => {
           {wants.map((want, i) => (
             <li key={i} className="text-[12px] uppercase tracking-[0.15em] text-gray-600">{want}</li>
           ))}
-          {wants.length === 0 && <li className="text-[10px] uppercase tracking-[0.15em] text-gray-300 italic">No current wants</li>}
+          {wants.length === 0 && <li className="text-[10px] uppercase tracking-[0.15em] text-gray-300 italic">No current wants listed</li>}
         </ul>
       </div>
     </div>

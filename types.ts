@@ -26,6 +26,25 @@ export interface Want {
   text: string;
 }
 
+export interface Friend {
+  id: string;
+  requester_id: string;
+  receiver_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  profiles?: Profile; // Used for joining requester info
+}
+
+export interface Trade {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  sender_items: string[];
+  receiver_items: string[];
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  created_at: string;
+}
+
 export interface UserSession {
   user: {
     id: string;
