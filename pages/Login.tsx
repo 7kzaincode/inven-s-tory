@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
 
@@ -15,31 +14,41 @@ const Login: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    if (isSignUp) {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+    try {
+      if (isSignUp) {
+        // Sign up logic - The profile is now created by a DB trigger automatically!
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              username: username // Metadata can be used by triggers if needed
+            }
+          }
+        });
 
-      if (signUpError) {
-        setError(signUpError.message);
-      } else if (data.user) {
-        // Create profile record
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            { id: data.user.id, username: username || email.split('@')[0], email: email }
-          ]);
-        if (profileError) setError(profileError.message);
+        if (signUpError) {
+          setError(signUpError.message);
+        } else if (data.user) {
+          // If "Confirm Email" is disabled, they are logged in. 
+          // If enabled, they need to check email.
+          if (!data.session) {
+            setError("Success! Please check your email to confirm your archive.");
+          }
+        }
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) setError(signInError.message);
       }
-    } else {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (signInError) setError(signInError.message);
+    } catch (err: any) {
+      setError("Archive connection failed. Please check your network.");
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -50,7 +59,9 @@ const Login: React.FC = () => {
       
       <form onSubmit={handleAuth} className="w-full flex flex-col space-y-8">
         {error && (
-          <p className="text-[10px] text-red-500 uppercase tracking-widest text-center">{error}</p>
+          <div className="p-4 bg-black text-white text-[9px] uppercase tracking-widest leading-relaxed text-center">
+            {error}
+          </div>
         )}
         
         {isSignUp && (
