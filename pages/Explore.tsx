@@ -43,7 +43,7 @@ const Explore: React.FC = () => {
   };
 
   const fetchTradeAds = async () => {
-    const { data } = await supabase.from('trade_ads').select('*, owner:profiles(*)').order('created_at', { ascending: false }).limit(6);
+    const { data } = await supabase.from('trade_ads').select('*, owner:profiles(*)').order('created_at', { ascending: false }).limit(10);
     if (data) {
       const enrichedAds = await Promise.all(data.map(async (ad) => {
         const { data: items } = await supabase.from('items').select('*').in('id', ad.offering_ids || []);
@@ -105,7 +105,7 @@ const Explore: React.FC = () => {
                     {ad.items.map(it => (
                       <div key={it.id} className="aspect-square bg-white border border-zinc-50 relative group/item">
                         <img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply" />
-                        {it.price && (
+                        {it.price && it.for_sale && (
                           <span className="absolute bottom-1 right-1 bg-zinc-900 text-white text-[8px] px-1 font-bold tracking-tighter">${it.price}</span>
                         )}
                       </div>

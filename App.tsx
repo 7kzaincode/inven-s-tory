@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Explore from './pages/Explore';
-import MySpace from './pages/MySpace';
 import AddItem from './pages/AddItem';
 import Login from './pages/Login';
 import ProfilePage from './pages/ProfilePage';
@@ -88,11 +87,11 @@ const App: React.FC = () => {
           <Route path="/" element={<Explore />} />
           <Route 
             path="/login" 
-            element={session.user ? <Navigate to="/my-space" replace /> : <Login />} 
+            element={session.user ? <Navigate to="/" replace /> : <Login />} 
           />
           <Route 
             path="/my-space" 
-            element={session.user ? <MySpace profile={session.profile!} /> : <Navigate to="/login" replace />} 
+            element={session.profile ? <Navigate to={`/profile/${session.profile.username}`} replace /> : <Navigate to="/login" replace />} 
           />
           <Route 
             path="/add" 

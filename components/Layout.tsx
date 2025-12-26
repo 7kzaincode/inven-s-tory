@@ -30,7 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
               <>
                 <Link 
                   to={`/profile/${user.username}`} 
-                  className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname.includes(`/profile/${user.username}`) ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
+                  className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname.startsWith('/profile') && location.pathname.includes(user.username) ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
                 >
                   ARCHIVE
                 </Link>

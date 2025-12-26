@@ -153,7 +153,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
         </div>
 
         {isEditing ? (
-          <div className="w-full max-lg mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="w-full max-w-lg mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <textarea 
               value={editBio} onChange={e => setEditBio(e.target.value)}
               placeholder="IDENTITY BIOGRAPHY..."
