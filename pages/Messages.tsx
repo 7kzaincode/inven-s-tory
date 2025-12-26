@@ -21,6 +21,8 @@ const Messages: React.FC = () => {
       if (session) {
         setCurrentUserId(session.user.id);
         fetchConversations(session.user.id);
+      } else {
+        setLoading(false);
       }
     };
     init();
@@ -76,9 +78,10 @@ const Messages: React.FC = () => {
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', uid).single();
     if (profile) setSelectedUser(profile as Profile);
 
+    // Using a simpler select to avoid ambiguous relationship errors in the schema cache
     const { data } = await supabase
       .from('messages')
-      .select('*, sender:profiles!messages_sender_id_fkey(*)')
+      .select('*')
       .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${uid}),and(sender_id.eq.${uid},receiver_id.eq.${currentUserId})`)
       .order('created_at', { ascending: true });
 
@@ -100,7 +103,7 @@ const Messages: React.FC = () => {
         receiver_id: selectedUser.id,
         text: msgText
       })
-      .select('*, sender:profiles!messages_sender_id_fkey(*)')
+      .select('*')
       .single();
 
     if (!error && data) {
@@ -110,18 +113,18 @@ const Messages: React.FC = () => {
       }
     } else {
       console.error("Failed to send message:", error);
-      alert("SIGNAL FAILURE: " + (error?.message || "Check network permissions."));
+      alert("SIGNAL FAILURE: " + (error?.message || "Verify your connection request first."));
       setInputText(msgText); 
     }
     setIsSending(false);
   };
 
-  if (loading) return <div className="py-32 text-center text-[10px] uppercase font-bold tracking-widest animate-pulse">Establishing Signal...</div>;
+  if (loading) return <div className="py-32 text-center text-[10px] uppercase font-bold tracking-widest animate-pulse">Establishing Archive Signal...</div>;
 
   return (
     <div className="flex w-full h-[75vh] gap-12 animate-in fade-in duration-700">
       <aside className="w-80 border-r border-zinc-100 pr-12 space-y-10 overflow-y-auto">
-        <h3 className="text-[11px] uppercase tracking-[0.4em] font-bold text-zinc-900 sticky top-0 bg-white pb-6 border-b border-zinc-50">ACTIVE CHANNELS</h3>
+        <h3 className="text-[11px] uppercase tracking-[0.4em] font-bold text-zinc-900 sticky top-0 bg-white pb-6 border-b border-zinc-50">ARCHIVAL CHANNELS</h3>
         <div className="space-y-4">
           {conversations.map(c => (
             <Link 
@@ -134,7 +137,7 @@ const Messages: React.FC = () => {
               <span className="text-[12px] font-bold uppercase tracking-widest truncate max-w-[140px]">@{c.username}</span>
             </Link>
           ))}
-          {conversations.length === 0 && <p className="text-[9px] uppercase tracking-widest text-zinc-300 italic py-10">No archival chatter found</p>}
+          {conversations.length === 0 && <p className="text-[9px] uppercase tracking-widest text-zinc-300 italic py-10">No active signals found</p>}
         </div>
       </aside>
 
@@ -150,11 +153,11 @@ const Messages: React.FC = () => {
                   <span className="text-[15px] font-bold uppercase tracking-[0.2em] text-zinc-900">@{selectedUser.username}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[8px] uppercase tracking-widest text-zinc-400 font-bold">Secure Archive Link</span>
+                    <span className="text-[8px] uppercase tracking-widest text-zinc-400 font-bold">Secure Sync Link</span>
                   </div>
                 </div>
               </div>
-              <Link to={`/profile/${selectedUser.username}`} className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors">View Profile</Link>
+              <Link to={`/profile/${selectedUser.username}`} className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors">Archive Profile</Link>
             </header>
             
             <div className="flex-1 overflow-y-auto p-12 space-y-10 bg-[#FAFAFA]">
@@ -186,7 +189,7 @@ const Messages: React.FC = () => {
                 disabled={!inputText.trim() || isSending}
                 className="px-12 py-6 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all disabled:opacity-20 active:scale-95 shadow-xl"
               >
-                {isSending ? 'Sending...' : 'Send'}
+                {isSending ? 'Syncing...' : 'Send'}
               </button>
             </form>
           </>
@@ -197,7 +200,7 @@ const Messages: React.FC = () => {
              </div>
              <div className="text-center space-y-2">
                <span className="text-[12px] uppercase tracking-[0.6em] font-bold text-zinc-400 block">ENCRYPTION ACTIVE</span>
-               <span className="text-[9px] uppercase tracking-[0.4em] font-bold text-zinc-200 block">Select a link to initiate sync</span>
+               <span className="text-[9px] uppercase tracking-[0.4em] font-bold text-zinc-200 block">Establish handshake to initiate sync</span>
              </div>
           </div>
         )}
