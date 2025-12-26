@@ -128,13 +128,13 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       <div className="flex flex-col items-center w-full max-w-2xl mx-auto py-24 space-y-12">
         <h1 className="text-[16px] uppercase tracking-[0.5em] font-bold text-zinc-900">CREATION HUB</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-          <button onClick={() => setMode('item')} className="p-12 border border-zinc-100 bg-[#FDFDFD] hover:border-zinc-900 transition-all text-left space-y-4">
-            <span className="text-[12px] font-bold uppercase tracking-widest block">Index New Unit</span>
-            <p className="text-[10px] text-zinc-400 uppercase tracking-widest leading-relaxed">Add an item to your archive for showcase or trade.</p>
+          <button onClick={() => setMode('item')} className="p-12 border border-zinc-100 bg-[#FDFDFD] hover:border-zinc-900 transition-all text-left space-y-4 shadow-sm hover:shadow-md">
+            <span className="text-[12px] font-bold uppercase tracking-widest block text-zinc-900">Index New Unit</span>
+            <p className="text-[10px] text-zinc-400 uppercase tracking-widest leading-relaxed font-bold">Add an item to your archive for showcase or trade.</p>
           </button>
-          <button onClick={() => setMode('bulletin')} className="p-12 border border-zinc-100 bg-[#FDFDFD] hover:border-zinc-900 transition-all text-left space-y-4">
-            <span className="text-[12px] font-bold uppercase tracking-widest block">Market Bulletin</span>
-            <p className="text-[10px] text-zinc-400 uppercase tracking-widest leading-relaxed">Post a public trade request or list units for sale.</p>
+          <button onClick={() => setMode('bulletin')} className="p-12 border border-zinc-100 bg-[#FDFDFD] hover:border-zinc-900 transition-all text-left space-y-4 shadow-sm hover:shadow-md">
+            <span className="text-[12px] font-bold uppercase tracking-widest block text-zinc-900">Market Bulletin</span>
+            <p className="text-[10px] text-zinc-400 uppercase tracking-widest leading-relaxed font-bold">Post a public trade request or list units for sale.</p>
           </button>
         </div>
       </div>
@@ -163,12 +163,12 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
           <textarea 
             value={bulletinText} onChange={e => setBulletinText(e.target.value)}
             placeholder="WHAT IS THE NATURE OF THIS PROPOSAL?"
-            className="w-full bg-zinc-50 border border-zinc-100 p-6 text-[13px] uppercase tracking-widest font-bold outline-none h-32 focus:border-zinc-900 transition-all"
+            className="w-full bg-zinc-50 border border-zinc-100 p-6 text-[13px] uppercase tracking-widest font-bold outline-none h-32 focus:border-zinc-900 transition-all text-zinc-900 placeholder:text-zinc-300"
           />
           <input 
             value={lookingFor} onChange={e => setLookingFor(e.target.value)}
             placeholder="WHAT ARE YOU LOOKING FOR? (OPTIONAL)"
-            className="w-full border-b border-zinc-200 py-4 text-[13px] uppercase tracking-widest font-bold outline-none focus:border-zinc-900"
+            className="w-full border-b border-zinc-200 py-4 text-[13px] uppercase tracking-widest font-bold outline-none focus:border-zinc-900 text-zinc-900 placeholder:text-zinc-300"
           />
           <button onClick={handleSaveBulletin} disabled={loading} className="w-full py-6 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.4em] hover:bg-black transition-all">
             {loading ? 'POSTING...' : 'COMMIT TO BULLETIN'}
@@ -202,37 +202,37 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
 
       {step === 'finalize' && (
         <div className="w-full space-y-12">
-          <div className="aspect-square bg-[#FDFDFD] border border-zinc-100 flex items-center justify-center overflow-hidden">
+          <div className="aspect-square bg-[#FDFDFD] border border-zinc-100 flex items-center justify-center overflow-hidden shadow-inner">
             <img src={processedImage!} className="w-full h-full object-contain mix-blend-multiply" />
           </div>
           <div className="space-y-10">
             <input 
               value={name} onChange={e => setName(e.target.value)}
               placeholder="UNIT IDENTIFIER"
-              className="w-full border-b border-zinc-900 py-4 text-[15px] uppercase tracking-widest font-bold outline-none"
+              className="w-full border-b border-zinc-900 py-4 text-[15px] uppercase tracking-widest font-bold outline-none text-zinc-900"
             />
             <div className="grid grid-cols-2 gap-8">
-              <select value={category} onChange={e => setCategory(e.target.value)} className="bg-transparent border-b border-zinc-200 py-2 text-[11px] uppercase tracking-widest font-bold outline-none">
+              <select value={category} onChange={e => setCategory(e.target.value)} className="bg-transparent border-b border-zinc-200 py-2 text-[11px] uppercase tracking-widest font-bold outline-none text-zinc-900">
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <select value={condition} onChange={e => setCondition(e.target.value)} className="bg-transparent border-b border-zinc-200 py-2 text-[11px] uppercase tracking-widest font-bold outline-none">
+              <select value={condition} onChange={e => setCondition(e.target.value)} className="bg-transparent border-b border-zinc-200 py-2 text-[11px] uppercase tracking-widest font-bold outline-none text-zinc-900">
                 {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="flex gap-12 items-center">
               <div className="flex items-center gap-3">
                 <input type="checkbox" checked={isForSale} onChange={e => setIsForSale(e.target.checked)} className="w-4 h-4 accent-zinc-950" />
-                <label className="text-[10px] font-bold uppercase tracking-widest">Sale</label>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-900">Sale</label>
               </div>
               <div className="flex items-center gap-3">
                 <input type="checkbox" checked={isForTrade} onChange={e => setIsForTrade(e.target.checked)} className="w-4 h-4 accent-zinc-950" />
-                <label className="text-[10px] font-bold uppercase tracking-widest">Trade</label>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-900">Trade</label>
               </div>
               {isForSale && (
                 <input 
                   type="number" value={price} onChange={e => setPrice(Number(e.target.value))}
                   placeholder="$"
-                  className="flex-1 border-b border-zinc-200 text-[12px] font-bold outline-none"
+                  className="flex-1 border-b border-zinc-200 text-[12px] font-bold outline-none text-zinc-900"
                 />
               )}
             </div>
@@ -244,22 +244,22 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       {step === 'verify' && (
         <div className="w-full space-y-16 animate-in fade-in zoom-in-95">
           <header className="text-center space-y-4">
-             <h2 className="text-[14px] font-bold uppercase tracking-[0.3em]">COMMITMENT VERIFICATION</h2>
+             <h2 className="text-[14px] font-bold uppercase tracking-[0.3em] text-zinc-900">COMMITMENT VERIFICATION</h2>
           </header>
           <div className="flex flex-col items-center gap-8 border border-zinc-100 p-12 bg-zinc-50/30">
              <div className="w-32 h-32 bg-white border border-zinc-100">
                <img src={processedImage!} className="w-full h-full object-contain mix-blend-multiply" />
              </div>
              <div className="text-center space-y-2">
-               <p className="text-[18px] font-bold uppercase tracking-widest">{name}</p>
-               <p className="text-[10px] text-zinc-400 uppercase tracking-widest">{category} / {condition} {isForSale ? `/ $${price}` : ''}</p>
+               <p className="text-[18px] font-bold uppercase tracking-widest text-zinc-900">{name}</p>
+               <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">{category} / {condition} {isForSale ? `/ $${price}` : ''}</p>
              </div>
           </div>
           <div className="flex gap-4">
              <button onClick={handleSaveItem} disabled={loading} className="flex-1 py-6 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-widest">
                {loading ? 'SYNCING...' : 'FINALIZE COMMIT'}
              </button>
-             <button onClick={() => setStep('finalize')} className="flex-1 py-6 border border-zinc-900 text-[11px] font-bold uppercase tracking-widest">BACK</button>
+             <button onClick={() => setStep('finalize')} className="flex-1 py-6 border border-zinc-900 text-[11px] font-bold uppercase tracking-widest text-zinc-900">BACK</button>
           </div>
         </div>
       )}

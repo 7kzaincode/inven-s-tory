@@ -13,6 +13,7 @@ import Messages from './pages/Messages';
 import TradeBuilder from './pages/TradeBuilder';
 import { UserSession, Profile } from './types';
 import { supabase } from './services/supabase';
+import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<UserSession>({
@@ -23,15 +24,15 @@ const App: React.FC = () => {
 
   useEffect(() => {
     supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (session) {
-          fetchProfile(session.user.id, session.user.email!);
+      .then(({ data: { session: currentSession } }: { data: { session: Session | null } }) => {
+        if (currentSession) {
+          fetchProfile(currentSession.user.id, currentSession.user.email!);
         } else {
           setLoading(false);
         }
       });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       if (session) {
         fetchProfile(session.user.id, session.user.email!);
       } else {
