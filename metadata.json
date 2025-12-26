@@ -1,0 +1,7 @@
+{
+  "name": "inven[s]tory",
+  "description": "A personal identity inventory for collectors and minimalists, featuring a Yeezy-inspired aesthetic.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
