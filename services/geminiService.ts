@@ -11,24 +11,30 @@ YEEZY PRODUCT IMAGE TRANSFORM:
 `;
 
 export async function processImageWithAI(base64Image: string): Promise<string | null> {
-  // Defensive key retrieval
-  let apiKey = "";
-  try {
-    apiKey = (window as any).process?.env?.API_KEY || 
-             (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-             "";
-  } catch (e) {
-    console.warn("Could not access environment for Gemini API Key");
+  // Ensure global environment is ready
+  if (typeof window !== 'undefined' && !(window as any).process) {
+    (window as any).process = { env: {} };
   }
-  
+
+  // Resolve API Key from multiple potential sources
+  const apiKey = (window as any).process?.env?.API_KEY || 
+                 (window as any).process?.env?.VITE_GEMINI_API_KEY || 
+                 (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+                 "";
+
   if (!apiKey) {
-    console.error("Gemini API_KEY not found. Ensure it is set in Vercel or your .env file.");
+    console.error("Gemini API_KEY not found. Ensure process.env.API_KEY is configured in your hosting provider.");
     return null;
   }
 
+  // Synchronize key into process.env to satisfy SDK requirements
+  if (typeof process !== 'undefined' && process.env) {
+    (process.env as any).API_KEY = apiKey;
+  }
+
   try {
-    // Initialize inside the function to ensure we have a key
-    const ai = new GoogleGenAI({ apiKey });
+    // SDK Guideline: Must use the named parameter and process.env.API_KEY
+    const ai = new GoogleGenAI({ apiKey: (process.env as any).API_KEY });
     
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',

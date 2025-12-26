@@ -1,10 +1,17 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>inven[s]tory</title>
+    <script>
+      // Global shim for libraries and environment variable access
+      window.process = window.process || { env: {} };
+      window.process.env = window.process.env || {};
+      // Injecting Supabase fallbacks into the global environment
+      window.process.env.VITE_SUPABASE_URL = "https://tttmwegnolhsbjyjzfhx.supabase.co";
+      window.process.env.VITE_SUPABASE_ANON_KEY = "sb_publishable_sijijZDWGZKwamc4ikVGxw_OLQUeNNq";
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,5 +43,6 @@
 </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
   </body>
 </html>

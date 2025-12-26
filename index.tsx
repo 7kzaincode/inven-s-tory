@@ -2,12 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// Immediate shim to prevent ReferenceErrors globally
-(function() {
-  if (typeof (window as any).process === 'undefined') {
-    (window as any).process = { env: {} };
-  }
-})();
+// Global shim for process.env to prevent crashes in ESM environments
+if (typeof (window as any).process === 'undefined') {
+  (window as any).process = { env: {} };
+}
 
 const rootElement = document.getElementById('root');
 
