@@ -43,23 +43,32 @@ const Explore: React.FC = () => {
   };
 
   const fetchTradeAds = async () => {
-    const { data } = await supabase
-      .from('trade_ads')
-      .select('*, owner:profiles(*)')
-      .order('created_at', { ascending: false })
-      .limit(10);
+    try {
+      // Step 1: Get the ads
+      const { data: ads, error: adError } = await supabase
+        .from('trade_ads')
+        .select('*, owner:profiles(*)')
+        .order('created_at', { ascending: false })
+        .limit(10);
       
-    if (data) {
-      const enrichedAds = await Promise.all(data.map(async (ad) => {
-        const { data: items } = await supabase.from('items').select('*').in('id', ad.offering_ids || []);
+      if (adError) throw adError;
+      if (!ads) return;
+
+      // Step 2: Enriched items for each ad
+      const enrichedAds = await Promise.all(ads.map(async (ad) => {
+        if (!ad.offering_ids || ad.offering_ids.length === 0) return { ...ad, items: [] };
+        const { data: items } = await supabase.from('items').select('*').in('id', ad.offering_ids);
         return { ...ad, items: items || [] };
       }));
+      
       setTradeAds(enrichedAds as TradeAdWithItems[]);
+    } catch (err) {
+      console.error("Bulletin fetch error:", err);
     }
   };
 
   return (
-    <div className="w-full flex flex-col items-center space-y-24">
+    <div className="w-full flex flex-col items-center space-y-24 animate-in fade-in duration-1000">
       <header className="w-full max-w-2xl space-y-10 text-center">
         <h1 className="text-[18px] uppercase tracking-[0.5em] font-bold text-zinc-900">IDENTITY DIRECTORY</h1>
         <div className="relative">
@@ -90,12 +99,16 @@ const Explore: React.FC = () => {
                 <p className="text-[10px] text-zinc-500 uppercase mt-3 tracking-[0.2em] font-bold">{a.count} ARCHIVAL UNITS</p>
               </Link>
             ))}
-            {loading && <div className="col-span-full text-center py-20 text-[11px] uppercase tracking-widest text-zinc-400 font-bold animate-pulse">Syncing...</div>}
+            {loading && archives.length === 0 && <div className="col-span-full text-center py-20 text-[11px] uppercase tracking-widest text-zinc-400 font-bold animate-pulse">Syncing...</div>}
+            {!loading && archives.length === 0 && <div className="col-span-full text-center py-20 text-[11px] uppercase tracking-widest text-zinc-300 font-bold">No archivists found</div>}
           </div>
         </section>
 
         <section className="lg:col-span-4 space-y-12 bg-zinc-50/20 p-8 border border-zinc-100">
-          <h3 className="text-[11px] uppercase tracking-[0.3em] font-bold text-zinc-400">MARKET BULLETINS</h3>
+          <div className="flex justify-between items-baseline">
+            <h3 className="text-[11px] uppercase tracking-[0.3em] font-bold text-zinc-400">MARKET BULLETINS</h3>
+            <Link to="/add" className="text-[9px] font-bold uppercase tracking-widest text-zinc-900 underline">Post New</Link>
+          </div>
           <div className="space-y-10">
             {tradeAds.map(ad => (
               <div key={ad.id} className="bg-white border border-zinc-100 p-8 shadow-sm hover:shadow-md transition-shadow group">
@@ -105,7 +118,7 @@ const Explore: React.FC = () => {
                 </div>
                 <p className="text-[14px] leading-relaxed text-zinc-800 font-medium mb-8 italic">"{ad.text}"</p>
                 
-                {ad.items.length > 0 && (
+                {ad.items && ad.items.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-8">
                     {ad.items.map(it => (
                       <div key={it.id} className="aspect-square bg-white border border-zinc-50 relative group/item">
@@ -127,7 +140,7 @@ const Explore: React.FC = () => {
                 </div>
               </div>
             ))}
-            <Link to="/add" className="block text-center py-6 bg-zinc-900 text-white text-[11px] uppercase tracking-[0.4em] font-bold hover:bg-black transition-all">POST BULLETIN</Link>
+            {tradeAds.length === 0 && <p className="text-[10px] text-zinc-300 uppercase tracking-widest text-center py-10 font-bold italic">No active bulletins</p>}
           </div>
         </section>
       </div>
