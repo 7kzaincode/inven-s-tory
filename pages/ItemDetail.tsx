@@ -17,6 +17,7 @@ const ItemDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isReported, setIsReported] = useState(false);
 
   // Edit State
   const [editName, setEditName] = useState('');
@@ -85,14 +86,26 @@ const ItemDetail: React.FC = () => {
     setDeleting(false);
   };
 
+  const handleReport = () => {
+    if (window.confirm("REPORT THIS UNIT FOR ARCHIVAL NON-COMPLIANCE?")) {
+      setIsReported(true);
+      alert("REPORT SUBMITTED. THE CENTRAL NODE WILL REVIEW THIS ASSET.");
+    }
+  };
+
   if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em] font-bold">Querying Archive...</div>;
   if (!item) return <div className="py-24 text-center text-[11px] uppercase tracking-widest text-zinc-900 font-bold">Unit not found</div>;
 
   return (
     <div className="flex flex-col lg:flex-row w-full gap-16 lg:gap-32 py-12">
       <div className="w-full lg:w-1/2">
-        <div className="aspect-square bg-[#FDFDFD] flex items-center justify-center border border-zinc-100 p-12 mb-12 overflow-hidden group">
-          <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-1000" />
+        <div className="aspect-square bg-[#FDFDFD] flex items-center justify-center border border-zinc-100 p-12 mb-12 overflow-hidden group relative">
+          <img src={item.image_url} alt={item.name} className={`w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-1000 ${isReported ? 'opacity-20 grayscale' : ''}`} />
+          {isReported && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-sm">
+               <span className="text-[12px] font-bold text-black border-2 border-black px-6 py-2 uppercase tracking-[0.4em]">Under Review</span>
+            </div>
+          )}
         </div>
 
         {/* Provenance Section */}
@@ -178,6 +191,9 @@ const ItemDetail: React.FC = () => {
                    {isOwner && (
                      <button onClick={handleDelete} disabled={deleting} className="text-[9px] font-bold uppercase tracking-widest text-red-500 hover:text-red-700 transition-colors">Delete</button>
                    )}
+                   {!isOwner && !isReported && (
+                     <button onClick={handleReport} className="text-[9px] font-bold uppercase tracking-widest text-zinc-300 hover:text-black transition-colors">Report Non-Archival</button>
+                   )}
                 </div>
               </div>
               <div className="flex gap-4">
@@ -207,7 +223,7 @@ const ItemDetail: React.FC = () => {
                    <Link to="/my-space" className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all">RETURN TO SPACE</Link>
                  ) : (
                    <>
-                    <Link to={`/trade/${item.id}`} className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all">PROPOSE TRADE</Link>
+                    <Link to={`/trade/${item.id}`} className={`text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all ${isReported ? 'pointer-events-none opacity-20' : ''}`}>PROPOSE TRADE</Link>
                     <Link to={`/messages/${item.owner_id}`} className="text-center py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-50 transition-all">MESSAGE ARCHIVIST</Link>
                    </>
                  )}

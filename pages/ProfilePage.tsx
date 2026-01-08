@@ -22,6 +22,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Edit State
   const [editBio, setEditBio] = useState('');
@@ -77,7 +78,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target?.result as string;
-        // Fix: Use the url property from the AI process result or fallback to source base64
         const result = await processImageWithAI(base64);
         const finalUrl = result.url || base64;
         const fetchResponse = await fetch(finalUrl);
@@ -105,6 +105,24 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
     setActionLoading(false);
   };
 
+  const handlePurge = async () => {
+    const confirmation = window.confirm("WARNING: THIS WILL PERMANENTLY DE-INDEX YOUR IDENTITY AND ALL ASSETS. THIS ACTION CANNOT BE UNDONE. PROCEED?");
+    if (!confirmation) return;
+    
+    setActionLoading(true);
+    try {
+      // Delete all items first (Supabase will handle storage via trigger or we can clear manually)
+      await supabase.from('items').delete().eq('owner_id', currentUser?.id);
+      await supabase.from('profiles').delete().eq('id', currentUser?.id);
+      await supabase.auth.signOut();
+      window.location.href = '/';
+    } catch (e) {
+      alert("PURGE ERROR: LINK TO CENTRAL NODE LOST.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const sendFriendRequest = async () => {
     if (!currentUser || !targetProfile) return;
     setActionLoading(true);
@@ -113,14 +131,38 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
     setActionLoading(false);
   };
 
-  if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-900">Syncing Archive Identity...</div>;
+  if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-900 animate-pulse">Syncing Archive Identity...</div>;
   if (!targetProfile) return <div className="py-32 text-center text-[11px] uppercase tracking-widest text-zinc-900 font-bold">Identity Not Found</div>;
 
   const isSelf = currentUser?.id === targetProfile.id;
 
   return (
-    <div className="flex flex-col items-center w-full">
+    <div className="flex flex-col items-center w-full relative">
       <header className="w-full mb-32 flex flex-col items-center">
+        {isSelf && (
+          <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className="absolute top-0 right-0 p-4 opacity-20 hover:opacity-100 transition-opacity"
+          >
+            <div className="w-5 h-5 flex flex-col justify-between items-end">
+              <span className="w-full h-[1.5px] bg-black"></span>
+              <span className="w-2/3 h-[1.5px] bg-black"></span>
+              <span className="w-1/3 h-[1.5px] bg-black"></span>
+            </div>
+          </button>
+        )}
+
+        {showSettings && isSelf && (
+          <div className="absolute top-16 right-0 w-64 bg-white border border-zinc-100 shadow-2xl z-50 p-8 animate-in slide-in-from-top-4 duration-500">
+             <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] border-b border-zinc-50 pb-4 mb-6">IDENTITY SETTINGS</h4>
+             <div className="space-y-6">
+                <button onClick={() => { setIsEditing(true); setShowSettings(false); }} className="w-full text-left text-[11px] uppercase tracking-widest font-bold hover:text-zinc-500">Edit Biography</button>
+                <button onClick={handlePurge} className="w-full text-left text-[11px] uppercase tracking-widest font-bold text-red-500 hover:text-red-700">De-index Identity</button>
+                <button onClick={() => setShowSettings(false)} className="w-full text-left text-[10px] uppercase tracking-widest font-bold text-zinc-300 pt-4">Close</button>
+             </div>
+          </div>
+        )}
+
         <div className="relative group mb-12">
           <div className="w-40 h-40 bg-zinc-50 rounded-full flex items-center justify-center border border-zinc-100 overflow-hidden shadow-sm transition-all duration-700 hover:shadow-xl">
             {targetProfile.avatar_url ? (
@@ -164,7 +206,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
               className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 focus:border-zinc-900 transition-all shadow-inner"
             />
             <div className="flex gap-6">
-              <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all">Commit</button>
+              <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">Commit</button>
               <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em]">Cancel</button>
             </div>
           </div>
@@ -178,7 +220,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
           {isSelf ? (
             <>
               <button onClick={() => setIsEditing(true)} className="text-[11px] uppercase tracking-[0.4em] font-bold border border-zinc-900 px-12 py-5 hover:bg-zinc-900 hover:text-white transition-all">Edit Archive</button>
-              <button onClick={() => navigate('/add')} className="text-[11px] uppercase tracking-[0.4em] font-bold bg-zinc-900 text-white px-12 py-5 hover:bg-black transition-all">Post Bulletin</button>
+              <button onClick={() => navigate('/add')} className="text-[11px] uppercase tracking-[0.4em] font-bold bg-zinc-900 text-white px-12 py-5 hover:bg-black transition-all shadow-xl">Post Bulletin</button>
             </>
           ) : (
             <>
@@ -189,7 +231,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
                 <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-400 font-bold px-10 py-5 border border-zinc-100">Pending</span>
               )}
               <Link to={`/trade/${targetProfile.username}`} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 text-zinc-900 font-bold px-10 py-5 hover:bg-zinc-50 transition-all">Propose Trade</Link>
-              <Link to={`/messages/${targetProfile.id}`} className="text-[11px] uppercase tracking-[0.3em] bg-zinc-900 text-white font-bold px-10 py-5 hover:bg-black transition-all">Send Message</Link>
+              <Link to={`/messages/${targetProfile.id}`} className="text-[11px] uppercase tracking-[0.3em] bg-zinc-900 text-white font-bold px-10 py-5 hover:bg-black transition-all shadow-xl">Send Message</Link>
             </>
           )}
         </div>
@@ -213,7 +255,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
                   <span className="text-[13px] font-bold uppercase tracking-[0.15em] text-zinc-600 group-hover:text-zinc-900">@{f.username}</span>
                 </Link>
               ))}
-              {friends.length === 0 && <p className="text-[10px] uppercase tracking-widest text-zinc-300 italic">No links verified.</p>}
+              {friends.length === 0 && <p className="text-[10px] uppercase tracking-widest text-zinc-300 italic font-bold">No links verified.</p>}
             </div>
           </section>
         </aside>

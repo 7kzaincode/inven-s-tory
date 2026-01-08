@@ -21,8 +21,10 @@ const App: React.FC = () => {
     profile: null
   });
   const [loading, setLoading] = useState(true);
+  const [isRecovering, setIsRecovering] = useState(false);
 
   useEffect(() => {
+    // Initial Session Check
     supabase.auth.getSession()
       .then(({ data: { session: currentSession } }: { data: { session: Session | null } }) => {
         if (currentSession) {
@@ -32,11 +34,17 @@ const App: React.FC = () => {
         }
       });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+    // Listen for Auth Changes (including recovery redirects)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecovering(true);
+      }
+      
       if (session) {
         fetchProfile(session.user.id, session.user.email!);
       } else {
         setSession({ user: null, profile: null });
+        setIsRecovering(false);
         setLoading(false);
       }
     });
@@ -68,6 +76,7 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession({ user: null, profile: null });
+    setIsRecovering(false);
   };
 
   if (loading) {
@@ -75,7 +84,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
           <div className="w-8 h-8 border-t border-black rounded-full animate-spin" />
-          <span className="text-[10px] uppercase tracking-[0.4em] text-gray-900 font-bold">Synchronizing Archive...</span>
+          <span className="text-[10px] uppercase tracking-[0.4em] text-gray-900 font-bold animate-pulse">Synchronizing Archive...</span>
         </div>
       </div>
     );
@@ -88,7 +97,11 @@ const App: React.FC = () => {
           <Route path="/" element={<Explore />} />
           <Route 
             path="/login" 
-            element={session.user ? <Navigate to="/" replace /> : <Login />} 
+            element={(session.user && !isRecovering) ? <Navigate to="/" replace /> : <Login />} 
+          />
+          <Route 
+            path="/recovery" 
+            element={<Login />} 
           />
           <Route 
             path="/my-space" 

@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
+import { censor } from '../services/safetyService';
 import { Profile, Message } from '../types';
 
 const Messages: React.FC = () => {
@@ -34,7 +35,6 @@ const Messages: React.FC = () => {
     if (targetUserId && currentUserId) {
       fetchUserAndMessages(targetUserId);
       
-      // DETERMINISTIC CHANNEL NAME: Shared by both users
       const sortedIds = [currentUserId, targetUserId].sort();
       const channelId = `convo:${sortedIds[0]}_${sortedIds[1]}`;
       
@@ -49,7 +49,6 @@ const Messages: React.FC = () => {
           table: 'messages'
         }, (payload) => {
           const newMsg = payload.new as Message;
-          // Only process messages for this specific conversation
           const isRelevant = 
             (newMsg.sender_id === targetUserId && newMsg.receiver_id === currentUserId) ||
             (newMsg.sender_id === currentUserId && newMsg.receiver_id === targetUserId);
@@ -132,10 +131,10 @@ const Messages: React.FC = () => {
     e?.preventDefault();
     if (!inputText.trim() || !selectedUser || !currentUserId || isSending) return;
 
-    const msgText = inputText;
+    // Apply censorship before sending to database
+    const msgText = censor(inputText);
     setInputText(''); 
 
-    // Optimistic Update: Add message immediately to the UI
     const tempId = crypto.randomUUID();
     const optimisticMsg: Message = {
       id: tempId,
@@ -217,7 +216,7 @@ const Messages: React.FC = () => {
                 return (
                   <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2 duration-300`}>
                     <div className={`max-w-[65%] p-7 text-[14px] font-medium leading-relaxed tracking-wide shadow-sm ${isMe ? 'bg-zinc-900 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-white border border-zinc-100 text-zinc-900 rounded-r-2xl rounded-tl-2xl'}`}>
-                      {m.text}
+                      {censor(m.text)}
                     </div>
                     <span className="mt-2 text-[8px] uppercase font-bold text-zinc-300 tracking-widest">
                       {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
