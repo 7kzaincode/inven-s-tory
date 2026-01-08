@@ -24,6 +24,12 @@ const App: React.FC = () => {
   const [isRecovering, setIsRecovering] = useState(false);
 
   useEffect(() => {
+    // Immediate check for recovery hash to prevent redirection race conditions
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery') || hash.includes('access_token=')) {
+      setIsRecovering(true);
+    }
+
     // Initial Session Check
     supabase.auth.getSession()
       .then(({ data: { session: currentSession } }: { data: { session: Session | null } }) => {
@@ -34,9 +40,10 @@ const App: React.FC = () => {
         }
       });
 
-    // Listen for Auth Changes (including recovery redirects)
+    // Listen for Auth Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-      if (event === 'PASSWORD_RECOVERY') {
+      // Supabase sends PASSWORD_RECOVERY event when landing from recovery email
+      if (event === 'PASSWORD_RECOVERY' || (session && window.location.hash.includes('type=recovery'))) {
         setIsRecovering(true);
       }
       
@@ -44,7 +51,10 @@ const App: React.FC = () => {
         fetchProfile(session.user.id, session.user.email!);
       } else {
         setSession({ user: null, profile: null });
-        setIsRecovering(false);
+        // Only clear recovery if we're not actually in the middle of a hash landing
+        if (!window.location.hash.includes('type=recovery')) {
+          setIsRecovering(false);
+        }
         setLoading(false);
       }
     });

@@ -24,6 +24,7 @@ const Login: React.FC = () => {
     const hash = window.location.hash || '';
     const isRecovery = hash.includes('type=recovery') || 
                        hash.includes('recovery_token') || 
+                       hash.includes('access_token=') ||
                        location.pathname === '/recovery';
 
     if (isRecovery) {
@@ -59,7 +60,7 @@ const Login: React.FC = () => {
         });
 
         if (signUpError) {
-          setError(signUpError.message);
+          setError(signUpError.message.toUpperCase());
         } else {
           setMessage("IDENTITY RECORDED. CHECK EMAIL TO VERIFY ARCHIVE ACCESS.");
         }
@@ -76,27 +77,34 @@ const Login: React.FC = () => {
           }
         }
       } else if (mode === 'recovery') {
-        // Send reset email
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/#/recovery`,
         });
         if (resetError) {
-          setError(resetError.message);
+          setError(resetError.message.toUpperCase());
         } else {
           setMessage("RECOVERY SIGNAL SENT. CHECK YOUR INBOX.");
         }
       } else if (mode === 'update_password') {
-        // Handle the actual password update
+        // Double check session before attempting update to prevent "Auth session missing"
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          setError("AUTH SESSION MISSING! THE LINK MAY BE EXPIRED OR INVALID.");
+          setLoading(false);
+          return;
+        }
+
         const { error: updateError } = await supabase.auth.updateUser({
           password: newPassword
         });
+
         if (updateError) {
-          setError(updateError.message);
+          setError(updateError.message.toUpperCase());
         } else {
           setMessage("CREDENTIALS UPDATED. IDENTITY RESTORED.");
           setTimeout(() => {
-            navigate('/');
-            // Reload to clear recovery state
+            navigate('/login');
             window.location.reload();
           }, 2000);
         }
@@ -130,12 +138,12 @@ const Login: React.FC = () => {
       
       <form onSubmit={handleAuth} className="w-full flex flex-col space-y-8">
         {error && (
-          <div className="p-5 bg-black text-white text-[9px] uppercase tracking-widest leading-relaxed text-center font-bold border border-red-900/20">
+          <div className="p-5 bg-black text-white text-[9px] uppercase tracking-widest leading-relaxed text-center font-bold border border-red-900/20 shadow-lg">
             {error}
           </div>
         )}
         {message && (
-          <div className="p-5 bg-zinc-50 border border-zinc-100 text-zinc-900 text-[9px] uppercase tracking-widest leading-relaxed text-center font-bold">
+          <div className="p-5 bg-zinc-50 border border-zinc-100 text-zinc-900 text-[9px] uppercase tracking-widest leading-relaxed text-center font-bold shadow-sm">
             {message}
           </div>
         )}
@@ -236,14 +244,14 @@ const Login: React.FC = () => {
           {(mode === 'login' || mode === 'signup') && (
             <button 
               type="button"
-              onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+              onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setMessage(null); }}
               className="text-[10px] uppercase tracking-[0.2em] text-gray-400 hover:text-black transition-colors font-bold"
             >
               {mode === 'login' ? 'Need to register? Sign Up' : 'Already registered? Login'}
             </button>
           )}
           {(mode === 'recovery' || mode === 'update_password') && (
-            <button type="button" onClick={() => { setMode('login'); navigate('/login'); }} className="text-[10px] uppercase tracking-[0.2em] text-zinc-300 hover:text-black font-bold">Back to Login</button>
+            <button type="button" onClick={() => { setMode('login'); setError(null); setMessage(null); navigate('/login'); }} className="text-[10px] uppercase tracking-[0.2em] text-zinc-300 hover:text-black font-bold">Back to Login</button>
           )}
         </div>
       </form>
