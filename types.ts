@@ -20,6 +20,7 @@ export interface Item {
   price?: number;
   category?: string;
   condition?: string;
+  zone?: string; // New: Physical location in the "house"
   created_at: string;
 }
 

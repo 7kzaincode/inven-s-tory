@@ -11,6 +11,7 @@ interface AddItemProps {
 
 const CATEGORIES = ['FOOTWEAR', 'APPAREL', 'ACCESSORY', 'HARDWARE', 'MEDIA', 'FURNITURE', 'OBJECT'];
 const CONDITIONS = ['DEADSTOCK', 'VNDS', 'USED', 'ARCHIVAL', 'DISTRESSED'];
+const ZONES = ['VAULT', 'STUDIO', 'ARCHIVE A', 'ARCHIVE B', 'LIVING SPACE', 'STORAGE', 'TRANSIT'];
 
 const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
   const navigate = useNavigate();
@@ -24,8 +25,9 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
   const [sourceImage, setSourceImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('FOOTWEAR');
+  const [category, setCategory] = useState('OBJECT');
   const [condition, setCondition] = useState('USED');
+  const [zone, setZone] = useState('VAULT');
   const [price, setPrice] = useState<number>(0);
   const [isForSale, setIsForSale] = useState(false);
   const [isForTrade, setIsForTrade] = useState(false);
@@ -95,6 +97,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
         for_trade: isForTrade, 
         category, 
         condition, 
+        zone,
         price: isForSale ? price : null
       }]);
       
@@ -210,13 +213,27 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
               className="w-full border-b border-zinc-900 py-4 text-[16px] uppercase tracking-widest font-bold outline-none bg-transparent"
             />
             <div className="grid grid-cols-2 gap-10">
-               <select value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-transparent border-b border-zinc-100 py-3 text-[11px] uppercase tracking-widest font-bold outline-none">
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-               </select>
-               <select value={condition} onChange={e => setCondition(e.target.value)} className="w-full bg-transparent border-b border-zinc-100 py-3 text-[11px] uppercase tracking-widest font-bold outline-none">
-                  {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
-               </select>
+               <div className="space-y-2">
+                 <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Category</label>
+                 <select value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-transparent border-b border-zinc-100 py-3 text-[11px] uppercase tracking-widest font-bold outline-none">
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                 </select>
+               </div>
+               <div className="space-y-2">
+                 <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Condition</label>
+                 <select value={condition} onChange={e => setCondition(e.target.value)} className="w-full bg-transparent border-b border-zinc-100 py-3 text-[11px] uppercase tracking-widest font-bold outline-none">
+                    {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                 </select>
+               </div>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Physical Zone (Map)</label>
+              <select value={zone} onChange={e => setZone(e.target.value)} className="w-full bg-transparent border-b border-zinc-100 py-3 text-[11px] uppercase tracking-widest font-bold outline-none">
+                 {ZONES.map(z => <option key={z} value={z}>{z}</option>)}
+              </select>
+            </div>
+
             <div className="flex gap-12 items-center pt-4">
               <div className="flex items-center gap-4 cursor-pointer" onClick={() => setIsForSale(!isForSale)}>
                 <div className={`w-5 h-5 border flex items-center justify-center ${isForSale ? 'bg-zinc-900 border-zinc-900' : 'border-zinc-200'}`}>{isForSale && <span className="text-[10px] text-white">✓</span>}</div>
@@ -251,8 +268,12 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
              </div>
              <div className="text-center space-y-4">
                <p className="text-[24px] font-bold uppercase tracking-[0.1em] text-zinc-900 leading-none">{name}</p>
-               <div className="flex items-center justify-center gap-4 text-[10px] text-zinc-400 uppercase font-bold tracking-widest">
-                 <span>{category}</span> / <span>{condition}</span> {isForSale && <span>/ ${price}</span>}
+               <div className="flex flex-col items-center gap-2 text-[10px] text-zinc-400 uppercase font-bold tracking-widest">
+                 <div className="flex gap-4">
+                   <span>{category}</span> / <span>{condition}</span>
+                 </div>
+                 <span className="text-zinc-900">LOCATION: {zone}</span>
+                 {isForSale && <span>/ ${price}</span>}
                </div>
              </div>
           </div>

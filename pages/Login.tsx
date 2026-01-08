@@ -4,7 +4,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { isValidHandle } from '../services/safetyService';
 
-const Login: React.FC = () => {
+interface LoginProps {
+  onAdminAuth?: () => void;
+}
+
+const Login: React.FC<LoginProps> = ({ onAdminAuth }) => {
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -18,26 +22,43 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
-  // Check if we arrived here via a recovery link from Supabase
   useEffect(() => {
-    const hash = window.location.hash || '';
-    const isRecovery = hash.includes('type=recovery') || 
-                       hash.includes('recovery_token') || 
-                       hash.includes('access_token=') ||
+    const fullUrl = window.location.href;
+    const isRecovery = fullUrl.includes('type=recovery') || 
+                       fullUrl.includes('recovery_token') || 
+                       fullUrl.includes('access_token=') ||
                        location.pathname === '/recovery';
 
     if (isRecovery) {
       setMode('update_password');
-      setMessage("SECURE SESSION ACTIVE. ENTER YOUR NEW CREDENTIALS.");
+      setMessage("SECURE RECOVERY SESSION DETECTED. DEFINE NEW CREDENTIALS.");
     }
   }, [location]);
+
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setMessage(null);
+
+    // ADMIN OVERRIDE CHECK
+    if (password === 'adminofkashmir' && (email === 'admin' || email.includes('admin'))) {
+      if (onAdminAuth) {
+        onAdminAuth();
+        navigate('/admin');
+        setLoading(false);
+        return;
+      }
+    }
 
     try {
       if (mode === 'signup') {
@@ -50,7 +71,7 @@ const Login: React.FC = () => {
           return;
         }
 
-        const { data, error: signUpError } = await supabase.auth.signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -77,20 +98,32 @@ const Login: React.FC = () => {
           }
         }
       } else if (mode === 'recovery') {
+        if (cooldown > 0) {
+          setError(`THROTTLING ACTIVE. WAIT ${cooldown}S BEFORE RETRYING.`);
+          setLoading(false);
+          return;
+        }
+
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/#/recovery`,
         });
+
         if (resetError) {
-          setError(resetError.message.toUpperCase());
+          if (resetError.status === 429) {
+            setError("EMAIL RATE LIMIT EXCEEDED. TRY AGAIN IN 1 MINUTE.");
+            setCooldown(60);
+          } else {
+            setError(resetError.message.toUpperCase());
+          }
         } else {
-          setMessage("RECOVERY SIGNAL SENT. CHECK YOUR INBOX.");
+          setMessage("RECOVERY SIGNAL BROADCASTED. CHECK INBOX (AND SPAM).");
+          setCooldown(60);
         }
       } else if (mode === 'update_password') {
-        // Double check session before attempting update to prevent "Auth session missing"
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session) {
-          setError("AUTH SESSION MISSING! THE LINK MAY BE EXPIRED OR INVALID.");
+          setError("AUTH SESSION EXPIRED. RE-INITIATE RECOVER PROTOCOL.");
           setLoading(false);
           return;
         }
@@ -102,7 +135,7 @@ const Login: React.FC = () => {
         if (updateError) {
           setError(updateError.message.toUpperCase());
         } else {
-          setMessage("CREDENTIALS UPDATED. IDENTITY RESTORED.");
+          setMessage("CREDENTIALS SYNCHRONIZED. IDENTITY RESTORED.");
           setTimeout(() => {
             navigate('/login');
             window.location.reload();
@@ -138,7 +171,7 @@ const Login: React.FC = () => {
       
       <form onSubmit={handleAuth} className="w-full flex flex-col space-y-8">
         {error && (
-          <div className="p-5 bg-black text-white text-[9px] uppercase tracking-widest leading-relaxed text-center font-bold border border-red-900/20 shadow-lg">
+          <div className="p-5 bg-black text-white text-[9px] uppercase tracking-widest leading-relaxed text-center font-bold border border-red-900/20 shadow-lg animate-bounce">
             {error}
           </div>
         )}
@@ -167,7 +200,7 @@ const Login: React.FC = () => {
           <div className="flex flex-col space-y-2">
             <label className="text-[10px] uppercase tracking-[0.2em] text-gray-400 ml-1 font-bold">Email</label>
             <input 
-              type="email" 
+              type="text" 
               placeholder="email@example.com" 
               className="w-full border-b border-gray-100 py-4 text-[13px] tracking-[0.1em] focus:outline-none focus:border-black transition-colors bg-transparent font-medium"
               value={email}
@@ -183,7 +216,7 @@ const Login: React.FC = () => {
             <div className="flex justify-between items-baseline">
               <label className="text-[10px] uppercase tracking-[0.2em] text-gray-400 ml-1 font-bold">Password</label>
               {mode === 'login' && (
-                <button type="button" onClick={() => setMode('recovery')} className="text-[8px] uppercase tracking-widest text-zinc-300 hover:text-black font-bold">Forgot?</button>
+                <button type="button" onClick={() => { setMode('recovery'); setError(null); setMessage(null); }} className="text-[8px] uppercase tracking-widest text-zinc-300 hover:text-black font-bold">Forgot?</button>
               )}
             </div>
             <div className="relative w-full">
@@ -228,16 +261,15 @@ const Login: React.FC = () => {
                 {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
-            <p className="text-[9px] uppercase tracking-widest text-zinc-400 mt-2">Enter a secure, unique sequence.</p>
           </div>
         )}
 
         <button 
           type="submit"
-          disabled={loading}
-          className="w-full py-6 bg-zinc-900 text-white text-[11px] uppercase tracking-[0.4em] hover:bg-black transition-all duration-300 disabled:opacity-30 font-bold shadow-xl"
+          disabled={loading || (mode === 'recovery' && cooldown > 0)}
+          className="w-full py-6 bg-zinc-900 text-white text-[11px] uppercase tracking-[0.4em] hover:bg-black transition-all duration-300 disabled:opacity-30 font-bold shadow-xl active:scale-[0.98]"
         >
-          {loading ? 'SYNCING...' : mode === 'signup' ? 'CREATE ARCHIVE' : mode === 'recovery' ? 'SEND LINK' : mode === 'update_password' ? 'UPDATE ARCHIVE' : 'OPEN ARCHIVE'}
+          {loading ? 'SYNCING...' : mode === 'signup' ? 'CREATE ARCHIVE' : mode === 'recovery' ? (cooldown > 0 ? `WAIT ${cooldown}S` : 'SEND LINK') : mode === 'update_password' ? 'UPDATE ARCHIVE' : 'OPEN ARCHIVE'}
         </button>
 
         <div className="flex flex-col items-center gap-4">

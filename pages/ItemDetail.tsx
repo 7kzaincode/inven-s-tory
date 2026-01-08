@@ -6,6 +6,7 @@ import { Item, ItemHistory, Profile } from '../types';
 
 const CATEGORIES = ['FOOTWEAR', 'APPAREL', 'ACCESSORY', 'HARDWARE', 'MEDIA', 'FURNITURE', 'OBJECT'];
 const CONDITIONS = ['DEADSTOCK', 'VNDS', 'USED', 'ARCHIVAL', 'DISTRESSED'];
+const ZONES = ['VAULT', 'STUDIO', 'ARCHIVE A', 'ARCHIVE B', 'LIVING SPACE', 'STORAGE', 'TRANSIT'];
 
 const ItemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +24,7 @@ const ItemDetail: React.FC = () => {
   const [editName, setEditName] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [editCondition, setEditCondition] = useState('');
+  const [editZone, setEditZone] = useState('');
   const [editPrice, setEditPrice] = useState<number | undefined>(0);
   const [editForSale, setEditForSale] = useState(false);
   const [editForTrade, setEditForTrade] = useState(false);
@@ -41,6 +43,7 @@ const ItemDetail: React.FC = () => {
       setEditName(itemData.name);
       setEditCategory(itemData.category || 'OBJECT');
       setEditCondition(itemData.condition || 'USED');
+      setEditZone(itemData.zone || 'VAULT');
       setEditPrice(itemData.price);
       setEditForSale(itemData.for_sale);
       setEditForTrade(itemData.for_trade);
@@ -65,6 +68,7 @@ const ItemDetail: React.FC = () => {
         name: editName,
         category: editCategory,
         condition: editCondition,
+        zone: editZone,
         price: editPrice,
         for_sale: editForSale,
         for_trade: editForTrade
@@ -156,6 +160,14 @@ const ItemDetail: React.FC = () => {
                  </select>
                </div>
              </div>
+
+             <div className="flex flex-col space-y-2">
+               <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Zone (Physical Map)</label>
+               <select value={editZone} onChange={e => setEditZone(e.target.value)} className="bg-transparent border-b border-zinc-200 text-[11px] uppercase tracking-widest font-bold py-2 outline-none">
+                  {ZONES.map(z => <option key={z} value={z}>{z}</option>)}
+               </select>
+             </div>
+
              <div className="space-y-6">
                <div className="flex items-center gap-4">
                  <input type="checkbox" checked={editForSale} onChange={e => setEditForSale(e.target.checked)} className="w-4 h-4 accent-zinc-900" />
@@ -206,6 +218,9 @@ const ItemDetail: React.FC = () => {
                <div className="grid grid-cols-2 gap-y-8">
                   <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Archival Registry</span>
                   <span className="text-[10px] font-bold uppercase tracking-widest">ID_{item.id.slice(0, 8)}</span>
+
+                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Physical Location</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">{item.zone || 'UNMAPPED'}</span>
 
                   <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Market Price</span>
                   <span className="text-[14px] font-bold">{item.price ? `$${item.price.toLocaleString()}` : 'VAULTED'}</span>

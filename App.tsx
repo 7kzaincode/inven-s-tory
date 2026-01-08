@@ -11,6 +11,8 @@ import Friends from './pages/Friends';
 import Inbox from './pages/Inbox';
 import Messages from './pages/Messages';
 import TradeBuilder from './pages/TradeBuilder';
+import AdminPanel from './pages/AdminPanel';
+import HouseMap from './pages/HouseMap';
 import { UserSession, Profile } from './types';
 import { supabase } from './services/supabase';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
@@ -22,37 +24,52 @@ const App: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [isRecovering, setIsRecovering] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [sudoUserId, setSudoUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Immediate check for recovery hash to prevent redirection race conditions
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery') || hash.includes('access_token=')) {
+    const adminToken = localStorage.getItem('inven_admin_token');
+    const activeSudoId = localStorage.getItem('inven_sudo_id');
+    
+    if (adminToken === 'OVERRIDE_ACTIVE') {
+      setIsAdmin(true);
+      if (activeSudoId) {
+        setSudoUserId(activeSudoId);
+      }
+    }
+
+    const fullUrl = window.location.href;
+    const isRecoveryUrl = fullUrl.includes('type=recovery') || 
+                         fullUrl.includes('recovery_token=') || 
+                         fullUrl.includes('access_token=');
+    
+    if (isRecoveryUrl) {
       setIsRecovering(true);
     }
 
-    // Initial Session Check
     supabase.auth.getSession()
       .then(({ data: { session: currentSession } }: { data: { session: Session | null } }) => {
-        if (currentSession) {
+        if (currentSession && !activeSudoId) {
           fetchProfile(currentSession.user.id, currentSession.user.email!);
+        } else if (activeSudoId && adminToken === 'OVERRIDE_ACTIVE') {
+          fetchProfile(activeSudoId, "admin@system.internal");
         } else {
           setLoading(false);
         }
       });
 
-    // Listen for Auth Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-      // Supabase sends PASSWORD_RECOVERY event when landing from recovery email
-      if (event === 'PASSWORD_RECOVERY' || (session && window.location.hash.includes('type=recovery'))) {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && window.location.href.includes('type=recovery'))) {
         setIsRecovering(true);
       }
       
-      if (session) {
-        fetchProfile(session.user.id, session.user.email!);
+      const activeSudoId = localStorage.getItem('inven_sudo_id');
+      if (session || activeSudoId) {
+        const targetId = activeSudoId || session?.user.id;
+        if (targetId) fetchProfile(targetId, session?.user.email || "admin@system.internal");
       } else {
         setSession({ user: null, profile: null });
-        // Only clear recovery if we're not actually in the middle of a hash landing
-        if (!window.location.hash.includes('type=recovery')) {
+        if (!window.location.href.includes('type=recovery')) {
           setIsRecovering(false);
         }
         setLoading(false);
@@ -64,7 +81,7 @@ const App: React.FC = () => {
 
   const fetchProfile = async (userId: string, email: string) => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -87,6 +104,21 @@ const App: React.FC = () => {
     await supabase.auth.signOut();
     setSession({ user: null, profile: null });
     setIsRecovering(false);
+    setIsAdmin(false);
+    setSudoUserId(null);
+    localStorage.removeItem('inven_admin_token');
+    localStorage.removeItem('inven_sudo_id');
+  };
+
+  const handleAdminAuth = () => {
+    setIsAdmin(true);
+    localStorage.setItem('inven_admin_token', 'OVERRIDE_ACTIVE');
+  };
+
+  const handleTerminateSudo = () => {
+    localStorage.removeItem('inven_sudo_id');
+    setSudoUserId(null);
+    window.location.reload();
   };
 
   if (loading) {
@@ -100,18 +132,31 @@ const App: React.FC = () => {
     );
   }
 
+  const activeUserId = sudoUserId || session.user?.id;
+
   return (
     <Router>
-      <Layout user={session.profile} onLogout={handleLogout}>
+      <Layout 
+        user={session.profile} 
+        isAdmin={isAdmin} 
+        onLogout={handleLogout}
+        sudoActive={!!sudoUserId}
+        onTerminateSudo={handleTerminateSudo}
+      >
         <Routes>
           <Route path="/" element={<Explore />} />
           <Route 
             path="/login" 
-            element={(session.user && !isRecovering) ? <Navigate to="/" replace /> : <Login />} 
+            element={(session.user && !isRecovering && !isAdmin && !sudoUserId) ? <Navigate to="/" replace /> : <Login onAdminAuth={handleAdminAuth} />} 
+          />
+          <Route path="/recovery" element={<Login onAdminAuth={handleAdminAuth} />} />
+          <Route 
+            path="/admin" 
+            element={isAdmin ? <AdminPanel /> : <Navigate to="/login" replace />} 
           />
           <Route 
-            path="/recovery" 
-            element={<Login />} 
+            path="/map" 
+            element={activeUserId ? <HouseMap ownerId={activeUserId} /> : <Navigate to="/login" replace />} 
           />
           <Route 
             path="/my-space" 
@@ -119,35 +164,41 @@ const App: React.FC = () => {
           />
           <Route 
             path="/add" 
-            element={session.user ? <AddItem ownerId={session.user.id} /> : <Navigate to="/login" replace />} 
+            element={activeUserId ? <AddItem ownerId={activeUserId} /> : <Navigate to="/login" replace />} 
           />
           <Route 
             path="/friends" 
-            element={session.user ? <Friends profile={session.profile!} /> : <Navigate to="/login" replace />} 
+            element={session.profile ? <Friends profile={session.profile} /> : <Navigate to="/login" replace />} 
           />
           <Route 
             path="/inbox" 
-            element={session.user ? <Inbox profile={session.profile!} /> : <Navigate to="/login" replace />} 
+            element={session.profile ? <Inbox profile={session.profile} /> : <Navigate to="/login" replace />} 
           />
           <Route 
             path="/messages" 
-            element={session.user ? <Messages /> : <Navigate to="/login" replace />} 
+            element={activeUserId ? <Messages /> : <Navigate to="/login" replace />} 
           />
           <Route 
             path="/messages/:targetUserId" 
-            element={session.user ? <Messages /> : <Navigate to="/login" replace />} 
+            element={activeUserId ? <Messages /> : <Navigate to="/login" replace />} 
+          />
+          <Route 
+            path="/profile/:username" 
+            element={<ProfilePage currentUser={session.profile} />} 
+          />
+          <Route 
+            path="/item/:id" 
+            element={<ItemDetail />} 
           />
           <Route 
             path="/trade/:username" 
-            element={session.user ? <TradeBuilder currentUser={session.profile!} /> : <Navigate to="/login" replace />} 
+            element={session.profile ? <TradeBuilder currentUser={session.profile} /> : <Navigate to="/login" replace />} 
           />
-          <Route path="/profile/:username" element={<ProfilePage currentUser={session.profile} />} />
-          <Route path="/item/:id" element={<ItemDetail />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
     </Router>
   );
 };
 
+// Exporting App as the default export for usage in index.tsx
 export default App;
