@@ -22,14 +22,21 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     const fullUrl = window.location.href;
+    // Explicit check for recovery type
     const isRecovery = fullUrl.includes('type=recovery') || 
-                       fullUrl.includes('recovery_token') || 
-                       fullUrl.includes('access_token=') ||
+                       fullUrl.includes('recovery_token') ||
                        location.pathname === '/recovery';
+
+    // Check for explicit signup/verification confirmation
+    const isSignupVerification = fullUrl.includes('type=signup') || 
+                               (fullUrl.includes('access_token=') && !fullUrl.includes('type=recovery'));
 
     if (isRecovery) {
       setMode('update_password');
       setMessage("SECURE RECOVERY SESSION ACTIVE. DEFINE NEW PASSWORD.");
+    } else if (isSignupVerification) {
+      setMessage("IDENTITY VERIFIED. ACCESS GRANTED.");
+      setMode('login');
     }
   }, [location]);
 

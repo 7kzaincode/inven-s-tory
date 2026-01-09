@@ -111,13 +111,44 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
     
     setActionLoading(true);
     try {
-      // Delete all items first (Supabase will handle storage via trigger or we can clear manually)
-      await supabase.from('items').delete().eq('owner_id', currentUser?.id);
-      await supabase.from('profiles').delete().eq('id', currentUser?.id);
+      const uid = currentUser?.id;
+      if (!uid) return;
+
+      // DELETE DEPENDENCIES IN ORDER TO AVOID CONSTRAINT VIOLATIONS
+      // 1. Trades involved in (either sender or receiver)
+      await supabase.from('trades').delete().or(`sender_id.eq.${uid},receiver_id.eq.${uid}`);
+      
+      // 2. Trade ads / Bulletins
+      await supabase.from('trade_ads').delete().eq('owner_id', uid);
+      
+      // 3. All messages (sent or received)
+      await supabase.from('messages').delete().or(`sender_id.eq.${uid},receiver_id.eq.${uid}`);
+      
+      // 4. Friend/Link requests
+      await supabase.from('friends').delete().or(`requester_id.eq.${uid},receiver_id.eq.${uid}`);
+      
+      // 5. Item History (where user was involved)
+      await supabase.from('item_history').delete().or(`from_owner_id.eq.${uid},to_owner_id.eq.${uid}`);
+      
+      // 6. Wants / Wishlist
+      await supabase.from('wants').delete().eq('owner_id', uid);
+
+      // 7. All items owned by the user
+      await supabase.from('items').delete().eq('owner_id', uid);
+      
+      // 8. Finally, delete the profile itself
+      const { error: profileError } = await supabase.from('profiles').delete().eq('id', uid);
+      
+      if (profileError) {
+        throw new Error(`Profile De-indexing failed: ${profileError.message}`);
+      }
+
+      // 9. Sign out to clear session
       await supabase.auth.signOut();
       window.location.href = '/';
-    } catch (e) {
-      alert("PURGE ERROR: LINK TO CENTRAL NODE LOST.");
+    } catch (e: any) {
+      console.error("PURGE ERROR:", e);
+      alert(`IDENTITY PURGE FAILURE: ${e.message || "DATABASE CONSTRAINT VIOLATION"}. CLEAR ALL PROPOSALS MANUALLY FIRST.`);
     } finally {
       setActionLoading(false);
     }

@@ -26,9 +26,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const fullUrl = window.location.href;
+    // Precisely detect recovery vs confirmation
     const isRecoveryUrl = fullUrl.includes('type=recovery') || 
-                         fullUrl.includes('recovery_token=') || 
-                         fullUrl.includes('access_token=');
+                         fullUrl.includes('recovery_token=');
     
     if (isRecoveryUrl) {
       setIsRecovering(true);
