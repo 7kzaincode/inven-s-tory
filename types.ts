@@ -1,4 +1,5 @@
 
+
 export interface Profile {
   id: string;
   username: string;
@@ -20,7 +21,8 @@ export interface Item {
   price?: number;
   category?: string;
   condition?: string;
-  zone?: string; // New: Physical location in the "house"
+  // Added zone property to support location-based physical mapping
+  zone?: string;
   created_at: string;
 }
 

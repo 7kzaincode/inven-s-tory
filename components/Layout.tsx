@@ -35,12 +35,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                   ARCHIVE
                 </Link>
                 <Link 
-                  to="/map" 
-                  className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname === '/map' ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
-                >
-                  MAP
-                </Link>
-                <Link 
                   to="/inbox" 
                   className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname === '/inbox' ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
                 >

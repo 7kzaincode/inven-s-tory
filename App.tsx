@@ -11,7 +11,6 @@ import Friends from './pages/Friends';
 import Inbox from './pages/Inbox';
 import Messages from './pages/Messages';
 import TradeBuilder from './pages/TradeBuilder';
-import HouseMap from './pages/HouseMap';
 import { UserSession, Profile } from './types';
 import { supabase } from './services/supabase';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
@@ -26,7 +25,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const fullUrl = window.location.href;
-    // Precisely detect recovery vs confirmation
     const isRecoveryUrl = fullUrl.includes('type=recovery') || 
                          fullUrl.includes('recovery_token=');
     
@@ -115,10 +113,6 @@ const App: React.FC = () => {
             element={(session.user && !isRecovering) ? <Navigate to="/" replace /> : <Login />} 
           />
           <Route path="/recovery" element={<Login />} />
-          <Route 
-            path="/map" 
-            element={activeUserId ? <HouseMap ownerId={activeUserId} /> : <Navigate to="/login" replace />} 
-          />
           <Route 
             path="/my-space" 
             element={session.profile ? <Navigate to={`/profile/${session.profile.username}`} replace /> : <Navigate to="/login" replace />} 

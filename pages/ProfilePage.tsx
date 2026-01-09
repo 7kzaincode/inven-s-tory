@@ -30,7 +30,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
 
   useEffect(() => {
     fetchProfileAndItems();
-  }, [username, currentUser]);
+  }, [username]);
 
   const fetchProfileAndItems = async () => {
     setLoading(true);
@@ -40,12 +40,15 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
       return;
     }
     setTargetProfile(profile as Profile);
-    setEditBio(profile.bio || '');
+    
+    // Initialize bio ONLY if not editing to avoid wiping user typing
+    if (!isEditing) {
+      setEditBio(profile.bio || '');
+    }
 
     const { data: itemsData } = await supabase.from('items').select('*').eq('owner_id', profile.id).order('created_at', { ascending: false });
     if (itemsData) setItems(itemsData as Item[]);
 
-    // Fetch Friends
     const { data: friendRecords } = await supabase
       .from('friends')
       .select('requester_id, receiver_id, requester:profiles!friends_requester_id_fkey(*), receiver:profiles!friends_receiver_id_fkey(*)')
@@ -96,17 +99,25 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
     }
   };
 
+  const startEditing = () => {
+    setEditBio(targetProfile?.bio || '');
+    setIsEditing(true);
+    setShowSettings(false);
+  };
+
   const saveProfile = async () => {
     if (!currentUser) return;
     setActionLoading(true);
-    await supabase.from('profiles').update({ bio: editBio }).eq('id', currentUser.id);
-    setIsEditing(false);
-    fetchProfileAndItems();
+    const { error } = await supabase.from('profiles').update({ bio: editBio }).eq('id', currentUser.id);
+    if (!error) {
+      setIsEditing(false);
+      fetchProfileAndItems();
+    }
     setActionLoading(false);
   };
 
   const handlePurge = async () => {
-    const confirmation = window.confirm("WARNING: THIS WILL PERMANENTLY DE-INDEX YOUR IDENTITY AND ALL ASSETS. THIS ACTION CANNOT BE UNDONE. PROCEED?");
+    const confirmation = window.confirm("WARNING: THIS WILL PERMANENTLY DE-INDEX YOUR IDENTITY AND ALL ASSETS. PROCEED?");
     if (!confirmation) return;
     
     setActionLoading(true);
@@ -114,41 +125,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
       const uid = currentUser?.id;
       if (!uid) return;
 
-      // DELETE DEPENDENCIES IN ORDER TO AVOID CONSTRAINT VIOLATIONS
-      // 1. Trades involved in (either sender or receiver)
       await supabase.from('trades').delete().or(`sender_id.eq.${uid},receiver_id.eq.${uid}`);
-      
-      // 2. Trade ads / Bulletins
       await supabase.from('trade_ads').delete().eq('owner_id', uid);
-      
-      // 3. All messages (sent or received)
       await supabase.from('messages').delete().or(`sender_id.eq.${uid},receiver_id.eq.${uid}`);
-      
-      // 4. Friend/Link requests
       await supabase.from('friends').delete().or(`requester_id.eq.${uid},receiver_id.eq.${uid}`);
-      
-      // 5. Item History (where user was involved)
       await supabase.from('item_history').delete().or(`from_owner_id.eq.${uid},to_owner_id.eq.${uid}`);
-      
-      // 6. Wants / Wishlist
       await supabase.from('wants').delete().eq('owner_id', uid);
-
-      // 7. All items owned by the user
       await supabase.from('items').delete().eq('owner_id', uid);
       
-      // 8. Finally, delete the profile itself
       const { error: profileError } = await supabase.from('profiles').delete().eq('id', uid);
-      
-      if (profileError) {
-        throw new Error(`Profile De-indexing failed: ${profileError.message}`);
-      }
+      if (profileError) throw profileError;
 
-      // 9. Sign out to clear session
       await supabase.auth.signOut();
       window.location.href = '/';
     } catch (e: any) {
-      console.error("PURGE ERROR:", e);
-      alert(`IDENTITY PURGE FAILURE: ${e.message || "DATABASE CONSTRAINT VIOLATION"}. CLEAR ALL PROPOSALS MANUALLY FIRST.`);
+      alert(`IDENTITY PURGE FAILURE: ${e.message}`);
     } finally {
       setActionLoading(false);
     }
@@ -185,9 +176,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
 
         {showSettings && isSelf && (
           <div className="absolute top-16 right-0 w-64 bg-white border border-zinc-100 shadow-2xl z-50 p-8 animate-in slide-in-from-top-4 duration-500">
-             <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] border-b border-zinc-50 pb-4 mb-6">IDENTITY SETTINGS</h4>
+             <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] border-b border-zinc-50 pb-4 mb-6 text-black">IDENTITY SETTINGS</h4>
              <div className="space-y-6">
-                <button onClick={() => { setIsEditing(true); setShowSettings(false); }} className="w-full text-left text-[11px] uppercase tracking-widest font-bold hover:text-zinc-500">Edit Biography</button>
+                <button onClick={startEditing} className="w-full text-left text-[11px] uppercase tracking-widest font-bold hover:text-zinc-500 text-black">Edit Biography</button>
                 <button onClick={handlePurge} className="w-full text-left text-[11px] uppercase tracking-widest font-bold text-red-500 hover:text-red-700">De-index Identity</button>
                 <button onClick={() => setShowSettings(false)} className="w-full text-left text-[10px] uppercase tracking-widest font-bold text-zinc-300 pt-4">Close</button>
              </div>
@@ -229,43 +220,48 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
           </div>
         </div>
 
-        {isEditing ? (
-          <div className="w-full max-w-lg mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <textarea 
-              value={editBio} onChange={e => setEditBio(e.target.value)}
-              placeholder="IDENTITY BIOGRAPHY..."
-              className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 focus:border-zinc-900 transition-all shadow-inner"
-            />
-            <div className="flex gap-6">
-              <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">Commit</button>
-              <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em]">Cancel</button>
+        <div className="w-full max-w-lg mt-12 flex flex-col items-center">
+          {isEditing ? (
+            <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <textarea 
+                value={editBio} 
+                onChange={e => setEditBio(e.target.value)}
+                placeholder="IDENTITY BIOGRAPHY..."
+                className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 focus:border-zinc-900 transition-all shadow-inner text-black resize-none"
+              />
+              <div className="flex gap-6">
+                <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl active:scale-95">Commit</button>
+                <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] text-black hover:bg-zinc-50 transition-all">Cancel</button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <p className="max-w-2xl text-center mt-12 text-[15px] text-zinc-700 font-medium tracking-wide leading-relaxed px-6 italic whitespace-pre-wrap">
-            {targetProfile.bio || (isSelf ? 'No bio established.' : 'Identity bio is unwritten.')}
-          </p>
-        )}
-
-        <div className="flex gap-6 mt-16">
-          {isSelf ? (
-            <>
-              <button onClick={() => setIsEditing(true)} className="text-[11px] uppercase tracking-[0.4em] font-bold border border-zinc-900 px-12 py-5 hover:bg-zinc-900 hover:text-white transition-all">Edit Archive</button>
-              <button onClick={() => navigate('/add')} className="text-[11px] uppercase tracking-[0.4em] font-bold bg-zinc-900 text-white px-12 py-5 hover:bg-black transition-all shadow-xl">Post Bulletin</button>
-            </>
           ) : (
-            <>
-              {!friendship && (
-                <button onClick={sendFriendRequest} disabled={actionLoading} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 font-bold px-10 py-5 hover:bg-zinc-900 hover:text-white transition-all">Link Archive</button>
-              )}
-              {friendship?.status === 'pending' && (
-                <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-400 font-bold px-10 py-5 border border-zinc-100">Pending</span>
-              )}
-              <Link to={`/trade/${targetProfile.username}`} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 text-zinc-900 font-bold px-10 py-5 hover:bg-zinc-50 transition-all">Propose Trade</Link>
-              <Link to={`/messages/${targetProfile.id}`} className="text-[11px] uppercase tracking-[0.3em] bg-zinc-900 text-white font-bold px-10 py-5 hover:bg-black transition-all shadow-xl">Send Message</Link>
-            </>
+            <p className="max-w-2xl text-center text-[15px] text-zinc-700 font-medium tracking-wide leading-relaxed italic whitespace-pre-wrap">
+              {targetProfile.bio || (isSelf ? 'No bio established.' : 'Identity bio is unwritten.')}
+            </p>
           )}
         </div>
+
+        {!isEditing && (
+          <div className="flex gap-6 mt-16">
+            {isSelf ? (
+              <>
+                <button onClick={startEditing} className="text-[11px] uppercase tracking-[0.4em] font-bold border border-zinc-900 px-12 py-5 hover:bg-zinc-900 hover:text-white transition-all text-black">Edit Archive</button>
+                <button onClick={() => navigate('/add')} className="text-[11px] uppercase tracking-[0.4em] font-bold bg-zinc-900 text-white px-12 py-5 hover:bg-black transition-all shadow-xl">Post Bulletin</button>
+              </>
+            ) : (
+              <>
+                {!friendship && (
+                  <button onClick={sendFriendRequest} disabled={actionLoading} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 font-bold px-10 py-5 hover:bg-zinc-900 hover:text-white transition-all text-black">Link Archive</button>
+                )}
+                {friendship?.status === 'pending' && (
+                  <span className="text-[11px] uppercase tracking-[0.3em] text-zinc-400 font-bold px-10 py-5 border border-zinc-100">Pending</span>
+                )}
+                <Link to={`/trade/${targetProfile.username}`} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 text-zinc-900 font-bold px-10 py-5 hover:bg-zinc-50 transition-all">Propose Trade</Link>
+                <Link to={`/messages/${targetProfile.id}`} className="text-[11px] uppercase tracking-[0.3em] bg-zinc-900 text-white font-bold px-10 py-5 hover:bg-black transition-all shadow-xl">Send Message</Link>
+              </>
+            )}
+          </div>
+        )}
       </header>
 
       <div className="w-full mb-32 flex flex-col lg:flex-row gap-24">

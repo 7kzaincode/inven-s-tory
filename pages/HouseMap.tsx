@@ -29,6 +29,7 @@ const HouseMap: React.FC<HouseMapProps> = ({ ownerId }) => {
     setLoading(false);
   };
 
+  // Fix: Extracting unique zones from items; 'zone' is now part of the Item type
   const zones = Array.from(new Set(items.map(i => i.zone || 'UNMAPPED')));
 
   if (loading) return (
@@ -46,6 +47,7 @@ const HouseMap: React.FC<HouseMapProps> = ({ ownerId }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
         {zones.map(zone => {
+          // Fix: Filter units assigned to this physical zone
           const zoneItems = items.filter(i => (i.zone || 'UNMAPPED') === zone);
           const isActive = activeZone === zone;
           
@@ -76,6 +78,7 @@ const HouseMap: React.FC<HouseMapProps> = ({ ownerId }) => {
              <h2 className="text-[12px] font-bold uppercase tracking-[0.4em] text-zinc-900">ZONE CONTENT: {activeZone}</h2>
              <button onClick={() => setActiveZone(null)} className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:text-black">Dismiss</button>
           </div>
+          {/* Fix: Display the inventory grid for the selected physical zone */}
           <InventoryGrid items={items.filter(i => (i.zone || 'UNMAPPED') === activeZone)} isOwner={true} />
         </div>
       )}
