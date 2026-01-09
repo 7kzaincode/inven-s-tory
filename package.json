@@ -1,10 +1,8 @@
+
 {
   "name": "inventory-archive",
   "private": true,
-  "version": "1.0.0",
-  "description": "A brutalist personal identity archive for collectors and minimalists.",
-  "author": "Archivist",
-  "license": "MIT",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

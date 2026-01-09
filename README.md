@@ -1,39 +1,63 @@
-# inven[s]tory
-> **The personal identity archive for the modern minimalist.**
+# INVEN[S]TORY
+### THE PERSONAL IDENTITY ARCHIVE
 
-![Version](https://img.shields.io/badge/version-1.0.0-black?style=flat-square)
-![License](https://img.shields.io/badge/license-MIT-black?style=flat-square)
-![Stack](https://img.shields.io/badge/stack-React_19_|_Supabase_|_Gemini-black?style=flat-square)
+**inven[s]tory** is not a marketplace; it is a digital repository for the physical self. Built for collectors, minimalists, and archivists who view their possessions not just as objects, but as indexed units of personal identity.
 
-**inven[s]tory** is a high-fidelity digital repository designed for collectors and minimalists who view their possessions as indexed units of identity. Inspired by brutalist architecture and archival systems, the platform focuses on provenance and spatial mapping rather than simple transactions.
+The platform employs a high-contrast, minimalist aesthetic inspired by brutalist architecture and archival systems (Yeezy-era influence).
 
 ---
 
-## 🏛️ Core Philosophy
-Most platforms focus on the *transaction*. **inven[s]tory** focuses on the *record*. We believe that the objects you surround yourself with are data points of your existence. Every item entered into the system is treated as a "Unit" with a history, a physical location, and a status within the global network.
+## CORE PHILOSOPHY
 
-## ✨ Key Features
-- **Archive Selection**: A minimalist grid interface for managing physical assets.
-- **Bilateral Trade Protocol**: A custom drag-and-drop trade builder for peer-to-peer unit exchange.
-- **Physical Atlas**: Spatial mapping of units to specific physical zones (Vault, Studio, Storage).
-- **AI Compliance Hub**: Powered by **Google Gemini**, ensuring all indexed assets meet archival visual standards.
-- **Market Bulletins**: Real-time broadcasts for trade inquiries and archival searches.
-- **Visibility Control**: Toggle items between "Indexed" (Public) and "Vaulted" (Private).
+Most platforms focus on the *transaction*. **inven[s]tory** focuses on the *provenance*. 
 
-## 🛠️ Tech Stack
-- **Frontend**: React 19, TypeScript, Tailwind CSS
-- **Backend**: Supabase (Auth, PostgreSQL, Storage)
-- **AI Engine**: Google Gemini API (Image classification & Content Safety)
-- **State Management**: React Hooks & Supabase Realtime
-
-
-   ```
-
-## 🔒 Security & Safety
-The archive employs a strict **Archival Safety Protocol**. 
-- **Deep Scan**: Automated regex filtering of handles, bios, and bulletins to prevent non-compliant content.
-- **AI Verification**: Gemini-3-Flash validates image uploads to ensure the archive remains free of irrelevant media.
-- **Identity Purge**: One-click de-indexing allows any archivist to completely remove their digital footprint from the network.
+We believe that the things you own should be curated, mapped, and protected. Every item entered into the system is treated as a "Unit" with a history, a physical location, and a status within the network.
 
 ---
-*"The Archive is never finished, only curated."*
+
+## ARCHIVAL FEATURES
+
+### 1. IDENTITY DIRECTORY
+The central index of all archivists. Browse established archives, view curated collections, and link identities to build a trusted network of peers.
+
+### 2. THE ATLAS (SPATIAL MAPPING)
+Inventory doesn't exist in a vacuum. The **Physical Atlas** allows you to map your units to specific zones (VAULT, STUDIO, STORAGE, etc.), creating a digital twin of your physical living space.
+
+### 3. UNIT INDEXING
+A rigorous intake protocol for physical assets.
+- **Categorization**: Footwear, Apparel, Hardware, Media, Objects.
+- **Condition Grading**: Deadstock to Archival.
+- **AI Compliance**: Gemini-3-Flash analyzes every upload to ensure only physical assets are indexed—keeping the archive pure from selfies and non-compliant imagery.
+
+### 4. BILATERAL TRADE PROTOCOL
+A custom-built **Trade Builder** for true peer-to-peer exchange.
+- Drag-and-drop interface.
+- Propose multi-item trades (My A+B for your C).
+- Handshake logic: Atomic execution of ownership transfer once both parties confirm.
+
+### 5. COMMUNICATION NODE
+Real-time messaging with archival safety protocols.
+- **Presence Detection**: See when archivists are connected.
+- **Safety Protocol**: Automated censorship and reporting for non-compliant behavior.
+- **Sync History**: Full record of all dialogues and proposals.
+
+---
+
+## TECHNICAL ARCHITECTURE
+
+- **Frontend**: React 19 (ESM) + TypeScript + Tailwind CSS.
+- **Backend**: Supabase (PostgreSQL + Auth + Storage).
+- **Intelligence**: Google Gemini AI (for image classification and text safety).
+- **Navigation**: React Router (Hash-based for seamless deployment).
+
+---
+
+## SECURITY & COMPLIANCE
+
+- **Identity Purge**: Archivists have total control. One click de-indexes your entire identity, clearing all assets and personal data from the central node.
+- **Archival Rejection**: Non-compliant assets (low-quality images, irrelevant content) are flagged by AI and can be reported by the community for review.
+- **Encrypted Dialogues**: Real-time communication is handled through Supabase Realtime with row-level security.
+
+---
+
+*“The Archive is never finished, only curated.”*
