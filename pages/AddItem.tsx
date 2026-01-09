@@ -11,6 +11,7 @@ interface AddItemProps {
 
 const CATEGORIES = ['FOOTWEAR', 'APPAREL', 'ACCESSORY', 'HARDWARE', 'MEDIA', 'FURNITURE', 'OBJECT'];
 const CONDITIONS = ['DEADSTOCK', 'VNDS', 'USED', 'ARCHIVAL', 'DISTRESSED'];
+const MAX_VALUATION = 999999;
 
 const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
   const navigate = useNavigate();
@@ -77,7 +78,10 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       const { error: uploadError } = await supabase.storage.from('inventory').upload(filePath, blob);
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('inventory').getPublicUrl(filePath);
-      const { error: dbError } = await supabase.from('items').insert([{
+      
+      const cappedPrice = Math.min(price, MAX_VALUATION);
+
+      const { data, error: dbError } = await supabase.from('items').insert([{
         owner_id: ownerId, 
         name: cleanStrict(name), 
         image_url: publicUrl, 
@@ -86,10 +90,15 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
         for_trade: isForTrade, 
         category, 
         condition, 
-        price: isForSale ? price : null
-      }]);
+        price: isForSale ? cappedPrice : null
+      }]).select();
+
       if (dbError) throw dbError;
-      navigate(`/profile/${ownerId}`);
+      if (data && data[0]) {
+        navigate(`/item/${data[0].id}`);
+      } else {
+        navigate(`/profile/${ownerId}`);
+      }
     } catch (e: any) {
       alert("Archive Failure: " + e.message);
     } finally {
@@ -167,9 +176,9 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
                  <div 
                    key={it.id} 
                    onClick={() => setSelectedForBulletin(prev => prev.includes(it.id) ? prev.filter(x => x !== it.id) : [...prev, it.id])}
-                   className={`aspect-square border-2 cursor-pointer bg-white p-2 transition-all ${selectedForBulletin.includes(it.id) ? 'border-zinc-900' : 'border-transparent opacity-40'}`}
+                   className={`aspect-square border-2 cursor-pointer bg-white p-2 transition-all overflow-hidden ${selectedForBulletin.includes(it.id) ? 'border-zinc-900' : 'border-transparent opacity-40'}`}
                  >
-                   <img src={it.image_url} className="w-full h-full object-contain" />
+                   <img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply" />
                  </div>
                ))}
                {myTradables.length === 0 && <p className="col-span-4 text-[9px] text-zinc-300 uppercase py-6 text-center font-bold italic">No tradeable units found.</p>}
@@ -270,7 +279,18 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
                 </div>
                 <label className="text-[10px] font-bold uppercase tracking-widest group-hover:text-black transition-colors">Trade</label>
               </div>
-              {isForSale && <input type="number" value={price} onChange={e => setPrice(Number(e.target.value))} className="flex-1 border-b border-zinc-900 text-[14px] font-bold outline-none text-right bg-transparent" placeholder="$" />}
+              {isForSale && (
+                <div className="flex-1 flex flex-col">
+                  <input 
+                    type="number" 
+                    value={price} 
+                    onChange={e => setPrice(Math.min(MAX_VALUATION, Number(e.target.value)))} 
+                    className="w-full border-b border-zinc-900 text-[14px] font-bold outline-none text-right bg-transparent" 
+                    placeholder="$" 
+                  />
+                  {price >= MAX_VALUATION && <span className="text-[7px] text-zinc-400 text-right mt-1 font-bold">MAX REGISTRY VALUE</span>}
+                </div>
+              )}
             </div>
             <button onClick={handleSaveItem} disabled={loading || !name} className="w-full py-7 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.4em] hover:bg-black shadow-2xl transition-all disabled:opacity-20 active:scale-95">
                {loading ? 'INDEXING...' : 'FINALIZE COMMIT'}

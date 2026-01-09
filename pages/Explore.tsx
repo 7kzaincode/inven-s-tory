@@ -188,7 +188,7 @@ const Explore: React.FC = () => {
 
   // REUSABLE STATS OVERLAY
   const ItemStatOverlay = ({ item }: { item: any }) => (
-    <div className="absolute inset-0 bg-zinc-950/90 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center p-2 text-center space-y-2 z-20 pointer-events-none">
+    <div className="absolute inset-0 bg-zinc-950/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center p-2 text-center space-y-2 z-20 pointer-events-none">
       <span className="text-[7px] text-white font-bold uppercase tracking-widest truncate w-full">{item.name}</span>
       <div className="space-y-0.5">
         <span className="text-[5px] uppercase tracking-[0.2em] text-zinc-500 font-bold block">CATEGORY</span>
@@ -280,8 +280,15 @@ const Explore: React.FC = () => {
                 {ad.items && ad.items.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-8">
                     {ad.items.map((it: any) => (
-                      <Link key={it.id} to={`/item/${it.id}`} className="aspect-square bg-white border border-zinc-50 relative group/item overflow-hidden">
-                        <img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply transition-transform duration-500 group-hover/item:scale-110" />
+                      <Link 
+                        key={it.id} 
+                        to={`/item/${it.id}`} 
+                        className="aspect-square bg-white border border-zinc-50 relative group overflow-hidden block"
+                      >
+                        <img 
+                          src={it.image_url} 
+                          className="w-full h-full object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-110" 
+                        />
                         <ItemStatOverlay item={it} />
                         {it.owner_id === currentUserId && (
                           <div className="absolute top-0 right-0 bg-zinc-950 text-white text-[6px] px-1 font-bold z-30">MY UNIT</div>

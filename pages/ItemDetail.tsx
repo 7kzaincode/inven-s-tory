@@ -7,6 +7,7 @@ import { cleanStrict } from '../services/safetyService';
 
 const CATEGORIES = ['FOOTWEAR', 'APPAREL', 'ACCESSORY', 'HARDWARE', 'MEDIA', 'FURNITURE', 'OBJECT'];
 const CONDITIONS = ['DEADSTOCK', 'VNDS', 'USED', 'ARCHIVAL', 'DISTRESSED'];
+const MAX_VALUATION = 999999;
 
 const ItemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -56,11 +57,13 @@ const ItemDetail: React.FC = () => {
 
   const handleUpdate = async () => {
     setSaving(true);
+    const cappedPrice = editPrice ? Math.min(editPrice, MAX_VALUATION) : null;
+
     const { error } = await supabase.from('items').update({
         name: cleanStrict(editName),
         category: editCategory,
         condition: editCondition,
-        price: editForSale ? editPrice : null,
+        price: editForSale ? cappedPrice : null,
         for_sale: editForSale,
         for_trade: editForTrade,
         public: editPublic
@@ -155,7 +158,18 @@ const ItemDetail: React.FC = () => {
                 </div>
                 <label className="text-[10px] font-bold uppercase tracking-widest group-hover:text-black transition-colors">Trade</label>
               </div>
-              {editForSale && <input type="number" value={editPrice} onChange={e => setEditPrice(Number(e.target.value))} className="flex-1 border-b border-zinc-900 text-[14px] font-bold outline-none text-right bg-transparent" placeholder="$" />}
+              {editForSale && (
+                <div className="flex-1 flex flex-col">
+                  <input 
+                    type="number" 
+                    value={editPrice} 
+                    onChange={e => setEditPrice(Math.min(MAX_VALUATION, Number(e.target.value)))} 
+                    className="w-full border-b border-zinc-900 text-[14px] font-bold outline-none text-right bg-transparent" 
+                    placeholder="$" 
+                  />
+                  {editPrice && editPrice >= MAX_VALUATION && <span className="text-[7px] text-zinc-400 text-right mt-1 font-bold">MAX REGISTRY VALUE</span>}
+                </div>
+              )}
             </div>
 
              <div className="flex gap-4 pt-8">
