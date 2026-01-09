@@ -220,7 +220,7 @@ const Explore: React.FC = () => {
         <section className="lg:col-span-4 space-y-12 bg-zinc-50/20 p-8 border border-zinc-100 shadow-inner">
           <div className="flex justify-between items-baseline">
             <h3 className="text-[11px] uppercase tracking-[0.3em] font-bold text-zinc-400">MARKET BULLETINS</h3>
-            <Link to="/add" className="text-[9px] font-bold uppercase tracking-widest text-zinc-900 underline">Post New</Link>
+            <Link to="/post-bulletin" className="text-[9px] font-bold uppercase tracking-widest text-zinc-900 underline">Post New</Link>
           </div>
           <div className="space-y-10">
             {displayedBulletins.map((ad: any) => (

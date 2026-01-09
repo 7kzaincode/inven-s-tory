@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import Explore from './pages/Explore';
 import AddItem from './pages/AddItem';
 import AddRoom from './pages/AddRoom';
+import PostBulletin from './pages/PostBulletin';
 import Login from './pages/Login';
 import ProfilePage from './pages/ProfilePage';
 import ItemDetail from './pages/ItemDetail';
@@ -99,6 +100,7 @@ const App: React.FC = () => {
           <Route path="/login" element={session.user ? <Navigate to="/" replace /> : <Login />} />
           <Route path="/add" element={activeUserId ? <AddItem ownerId={activeUserId} /> : <Navigate to="/login" replace />} />
           <Route path="/add-room" element={activeUserId ? <AddRoom /> : <Navigate to="/login" replace />} />
+          <Route path="/post-bulletin" element={activeUserId ? <PostBulletin /> : <Navigate to="/login" replace />} />
           <Route path="/friends" element={session.profile ? <Friends profile={session.profile} /> : <Navigate to="/login" replace />} />
           <Route path="/inbox" element={session.profile ? <Inbox profile={session.profile} /> : <Navigate to="/login" replace />} />
           <Route path="/messages/:targetUserId" element={session.profile ? <Inbox profile={session.profile} /> : <Navigate to="/login" replace />} />
