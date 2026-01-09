@@ -185,9 +185,9 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
             {selectedRoomId && (
               <div className="space-y-6">
                 <p className="text-[10px] uppercase tracking-widest text-center text-zinc-400 font-bold">Bake unit coordinate onto spatial node</p>
-                <div className="relative aspect-video bg-zinc-900 border border-zinc-950 overflow-hidden shadow-2xl cursor-crosshair" onClick={handlePin}>
-                  <img src={rooms.find(r => r.id === selectedRoomId)?.image_url} className="w-full h-full object-cover grayscale opacity-40 blur-[1px]" />
-                  <div style={{ left: `${locX}%`, top: `${locY}%` }} className="absolute w-10 h-10 -translate-x-1/2 -translate-y-1/2 bg-white border-4 border-zinc-950 rounded-full shadow-2xl animate-pulse" />
+                <div className="relative w-full bg-zinc-900 border border-zinc-950 overflow-hidden shadow-2xl cursor-crosshair" onClick={handlePin}>
+                  <img src={rooms.find(r => r.id === selectedRoomId)?.image_url} className="w-full h-auto grayscale opacity-40 blur-[1px] block" />
+                  <div style={{ left: `${locX}%`, top: `${locY}%` }} className="absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 bg-white border-2 border-zinc-950 rounded-full shadow-2xl animate-pulse" />
                 </div>
                 <input value={locNote} onChange={e => setLocNote(e.target.value)} placeholder="Node metadata (e.g. Shelf 4, Left Side)" className="w-full border-b border-zinc-100 py-3 text-[14px] italic outline-none focus:border-zinc-900 transition-colors bg-transparent" />
               </div>

@@ -80,7 +80,6 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
       if (sRes.data) setSentTrades(sRes.data);
       if (bRes.data) setMyBulletins(bRes.data);
 
-      // Enlist all items involved in trades for the summary view
       const allItemIds = new Set<string>();
       [...(tRes.data || []), ...(sRes.data || [])].forEach(trade => {
         trade.sender_items?.forEach((id: string) => allItemIds.add(id));
@@ -118,9 +117,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
       message: "THIS SIGNAL WILL BE PERMANENTLY REMOVED FROM THE GLOBAL DIRECTORY.",
       onConfirm: async () => {
         const { error } = await supabase.from('trade_ads').delete().eq('id', id);
-        if (!error) {
-          setMyBulletins(prev => prev.filter(b => b.id !== id));
-        }
+        if (!error) setMyBulletins(prev => prev.filter(b => b.id !== id));
         setModalConfig(null);
       }
     });
@@ -133,9 +130,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
       message: "WITHDRAW THIS TRADE REQUEST FROM THE RECEIVER'S NODE? THIS ACTION IS FINAL.",
       onConfirm: async () => {
         const { error } = await supabase.from('trades').delete().eq('id', id);
-        if (!error) {
-          setSentTrades(prev => prev.filter(t => t.id !== id));
-        }
+        if (!error) setSentTrades(prev => prev.filter(t => t.id !== id));
         setModalConfig(null);
       }
     });
@@ -154,7 +149,6 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
   const sendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputText.trim() || !selectedConvo || isSending) return;
-    
     if (!isClean(inputText)) {
        setModalConfig({
          isOpen: true,
@@ -164,17 +158,14 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
        });
        return;
     }
-
     const msgText = censor(cleanStrict(inputText, true));
     setInputText(''); 
     setIsSending(true);
-
     await supabase.from('messages').insert({
       sender_id: profile.id,
       receiver_id: selectedConvo.id,
       text: msgText
     });
-
     setIsSending(false);
   };
 
@@ -187,7 +178,6 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
 
   return (
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto space-y-12 py-10 animate-in fade-in duration-700 relative">
-      
       {modalConfig && (
         <HandshakeModal 
           isOpen={modalConfig.isOpen}
@@ -259,12 +249,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
              {myBulletins.map(b => (
                <div key={b.id} className="bg-white border border-zinc-100 p-10 shadow-sm relative group overflow-hidden">
                   <div className="absolute top-0 left-0 bg-zinc-950 text-white text-[8px] font-bold tracking-widest px-3 py-1">ACTIVE_BROADCAST</div>
-                  <button 
-                    onClick={() => handleDecommissionBulletin(b.id)}
-                    className="absolute top-4 right-4 text-red-600 text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    [ DECOMMISSION ]
-                  </button>
+                  <button onClick={() => handleDecommissionBulletin(b.id)} className="absolute top-4 right-4 text-red-600 text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">[ DECOMMISSION ]</button>
                   <p className="text-[15px] italic font-medium leading-relaxed text-zinc-800 my-8">"{b.text}"</p>
                   <div className="flex justify-between items-baseline pt-6 border-t border-zinc-50">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">LF: {b.looking_for || 'INQUIRY'}</span>
@@ -283,17 +268,16 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                <>
                 {friendRequests.map(req => (
                   <div key={req.id} className="p-8 border border-zinc-100 flex justify-between items-center bg-white hover:shadow-md transition-all">
-                    <span className="text-[12px] uppercase tracking-widest font-bold">LINK REQUEST FROM @{req.requester.username}</span>
+                    <span className="text-[12px] uppercase tracking-widest font-bold">LINK REQUEST FROM @{req.requester?.username || 'ARCHIVIST'}</span>
                     <button className="text-[10px] uppercase font-bold bg-zinc-900 text-white px-8 py-3 hover:bg-black">Accept</button>
                   </div>
                 ))}
                 {tradeRequests.map(trade => (
                   <div key={trade.id} className="p-10 border border-zinc-100 bg-white hover:border-zinc-950 shadow-sm transition-all group">
                     <div className="flex justify-between items-start mb-10">
-                      <span className="text-[13px] uppercase font-bold tracking-widest text-zinc-900">PROPOSAL FROM @{trade.sender.username}</span>
+                      <span className="text-[13px] uppercase font-bold tracking-widest text-zinc-900">PROPOSAL FROM @{trade.sender?.username || 'ARCHIVIST'}</span>
                       <span className="text-[9px] text-zinc-300 font-bold">{new Date(trade.created_at).toLocaleDateString()}</span>
                     </div>
-                    
                     <div className="grid grid-cols-2 gap-12 mb-10">
                       <div>
                         <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold block mb-4">THEIR OFFER</span>
@@ -316,7 +300,6 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                         </div>
                       </div>
                     </div>
-
                     <button className="w-full py-4 bg-zinc-950 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-black">INSPECT HANDSHAKE</button>
                   </div>
                 ))}
@@ -333,17 +316,11 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
                     <div key={trade.id} className="p-10 border border-zinc-100 bg-white shadow-sm relative group transition-all hover:border-zinc-950">
                       <div className="flex justify-between items-start mb-8">
                         <div className="flex flex-col gap-1">
-                          <span className="text-[12px] uppercase tracking-widest font-bold">SENT TO @{trade.receiver.username}</span>
+                          <span className="text-[12px] uppercase tracking-widest font-bold">SENT TO @{trade.receiver?.username || 'ARCHIVIST'}</span>
                           <span className="text-[9px] text-zinc-300 font-bold uppercase tracking-widest">Awaiting Remote Handshake</span>
                         </div>
-                        <button 
-                          onClick={() => handleRevokeTrade(trade.id)}
-                          className="text-[10px] text-zinc-300 hover:text-red-500 font-bold uppercase tracking-widest transition-colors"
-                        >
-                          [ REVOKE ]
-                        </button>
+                        <button onClick={() => handleRevokeTrade(trade.id)} className="text-[10px] text-zinc-300 hover:text-red-500 font-bold uppercase tracking-widest transition-colors">[ REVOKE ]</button>
                       </div>
-
                       <div className="grid grid-cols-2 gap-12 border-t border-zinc-50 pt-8">
                         <div>
                           <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold block mb-4">YOUR OFFER</span>

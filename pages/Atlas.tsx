@@ -83,20 +83,15 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
     temp = rooms.find(r => r.id === temp?.parent_id);
   }
 
-  // --- INTERACTION LOGIC ---
-
   const startHoldTimer = (id: string) => {
     if (holdTimerRef.current) window.clearTimeout(holdTimerRef.current);
-    
     setHoldProgress(0);
     const startTime = Date.now();
-    const duration = 500; // Snappy hold
-
+    const duration = 500;
     const tick = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min((elapsed / duration) * 100, 100);
       setHoldProgress(progress);
-      
       if (elapsed < duration) {
         holdTimerRef.current = window.requestAnimationFrame(tick);
       } else {
@@ -105,7 +100,6 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
         if (window.navigator.vibrate) window.navigator.vibrate(50);
       }
     };
-
     holdTimerRef.current = window.requestAnimationFrame(tick);
   };
 
@@ -128,16 +122,11 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
       Math.pow(e.clientX - dragStartPos.current.x, 2) + 
       Math.pow(e.clientY - dragStartPos.current.y, 2)
     );
-
-    if (!editMode && moveDist > 10) {
-      clearHoldTimer();
-    }
-
+    if (!editMode && moveDist > 10) clearHoldTimer();
     if (editMode && mapRef.current) {
       const rect = mapRef.current.getBoundingClientRect();
       const x = Math.min(Math.max(0, ((e.clientX - rect.left) / rect.width) * 100), 100);
       const y = Math.min(Math.max(0, ((e.clientY - rect.top) / rect.height) * 100), 100);
-
       const isItem = items.some(i => i.id === editMode);
       if (isItem) {
         setItems(prev => prev.map(item => item.id === editMode ? { ...item, loc_x: x, loc_y: y } : item));
@@ -152,20 +141,16 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
       clearHoldTimer();
       return;
     }
-
     const moveDist = Math.sqrt(
       Math.pow(e.clientX - dragStartPos.current.x, 2) + 
       Math.pow(e.clientY - dragStartPos.current.y, 2)
     );
-
     if (editMode === id) {
       await commitPosition(id, isItem);
       setEditMode(null);
     } else {
       clearHoldTimer();
-      if (moveDist < 10) {
-        setSelectedPinId(id === selectedPinId ? null : id);
-      }
+      if (moveDist < 10) setSelectedPinId(id === selectedPinId ? null : id);
     }
   };
 
@@ -216,20 +201,26 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
   const deployItemToRoom = async (item: Item) => {
     if (!currentRoomId || deploying) return;
     setDeploying(true);
-    
     const { error } = await supabase.from('items').update({
       room_id: currentRoomId,
       loc_x: 50,
       loc_y: 50
     }).eq('id', item.id);
-
     if (!error) {
-      setItems(prev => prev.map(i => i.id === item.id ? { ...i, room_id: currentRoomId, loc_x: 50, loc_y: 50 } : i));
-      setUnassignedItems(prev => prev.filter(i => i.id !== item.id));
+      await fetchArchive(); 
       setShowDeployDrawer(false);
       setSelectedPinId(item.id);
     }
     setDeploying(false);
+  };
+
+  const getPopupStyles = (x: number, y: number) => {
+    let vertical = y > 50 ? 'bottom-full mb-6' : 'top-full mt-6';
+    let horizontal = '';
+    if (x > 80) horizontal = '-translate-x-full ml-4';
+    else if (x < 20) horizontal = 'translate-x-0 -ml-4';
+    else horizontal = '-translate-x-1/2';
+    return `${vertical} ${horizontal}`;
   };
 
   if (loading) return (
@@ -243,7 +234,6 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
 
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-20 py-10 animate-in fade-in duration-1000 relative">
-      
       {modalConfig && (
         <HandshakeModal 
           isOpen={modalConfig.isOpen}
@@ -259,7 +249,6 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
           <h1 className="text-[48px] font-bold uppercase tracking-[0.6em] leading-none text-zinc-950">ATLAS</h1>
           <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.5em]">Hold for 0.5s to recalibrate unit coordinates</p>
         </div>
-
         <nav className="flex gap-4 items-center text-[10px] font-bold uppercase tracking-widest">
            <button onClick={() => setCurrentRoomId(null)} className={`hover:text-black transition-colors ${!currentRoomId ? 'text-black underline underline-offset-8' : 'text-zinc-300'}`}>ROOT</button>
            {breadcrumbs.map(b => (
@@ -272,7 +261,7 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
       </header>
 
       {currentRoomId ? (
-        <div className="space-y-20">
+        <div className="space-y-20 flex flex-col items-center">
           <div 
             ref={mapRef}
             onMouseMove={handleMouseMove}
@@ -283,20 +272,18 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
                 setEditMode(null);
               }
             }}
-            className="relative aspect-[16/8] w-full bg-zinc-950 border border-zinc-950 overflow-hidden shadow-2xl rounded-sm group select-none"
+            className="relative w-full max-w-[1200px] bg-zinc-50 border border-zinc-950 overflow-hidden shadow-2xl rounded-sm group select-none"
           >
             <img 
               src={currentRoom?.image_url} 
-              className={`w-full h-full object-cover transition-all duration-1000 ${editMode ? 'opacity-30 grayscale blur-sm' : 'opacity-70 grayscale hover:grayscale-0 hover:opacity-100'}`} 
+              className={`w-full block transition-all duration-1000 ${editMode ? 'opacity-30 grayscale blur-sm' : 'opacity-100 grayscale hover:grayscale-0'}`} 
             />
-            
             {editMode && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]">
-                 <span className="text-white text-[14px] font-bold uppercase tracking-[1em] animate-pulse">CALIBRATION_ACTIVE</span>
+                 <span className="text-white text-[14px] font-bold uppercase tracking-[1em] animate-pulse bg-black/40 px-10 py-4">CALIBRATION_ACTIVE</span>
               </div>
             )}
 
-            {/* SUB-ROOM PINS */}
             {subRooms.map(room => (
               <div 
                 key={room.id}
@@ -313,14 +300,13 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
                    )}
                    <div className="w-2 h-2 bg-white rounded-full" />
                 </div>
-                
                 {(selectedPinId === room.id || (hoveredPin === room.id && !selectedPinId)) && !editMode && (
-                  <div className="absolute top-14 bg-zinc-950 px-6 py-5 border border-zinc-800 text-white shadow-2xl flex flex-col gap-4 z-[300] ignore-pin-interaction animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className={`absolute bg-zinc-950 px-6 py-5 border border-zinc-800 text-white shadow-2xl flex flex-col gap-4 z-[300] ignore-pin-interaction animate-in fade-in slide-in-from-top-2 duration-200 ${getPopupStyles(room.x || 50, room.y || 50)}`}>
                     <div className="flex justify-between items-center gap-12">
                       <span className="text-[11px] font-bold uppercase tracking-[0.2em]">{room.name}</span>
                       <button 
                         onClick={() => handleDecommissionNode(room.id)}
-                        className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center text-[20px] font-bold hover:bg-red-700 transition-all active:scale-90"
+                        className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center text-[16px] font-bold hover:bg-red-700 transition-all active:scale-90"
                       >
                         ×
                       </button>
@@ -334,7 +320,6 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
               </div>
             ))}
 
-            {/* ITEM PINS */}
             {roomItems.map(item => (
               <div 
                 key={item.id}
@@ -350,13 +335,8 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
                      <div className="absolute -inset-2 rounded-full border border-white/80 border-t-transparent animate-spin" />
                    )}
                 </div>
-
-                {/* ITEM POPUP */}
                 {(selectedPinId === item.id || (hoveredPin === item.id && !selectedPinId)) && !editMode && (
-                  <div 
-                    className="absolute top-12 left-1/2 -translate-x-1/2 bg-zinc-950 px-6 py-5 border border-zinc-800 shadow-2xl whitespace-nowrap z-[300] flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200"
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
+                  <div className={`absolute bg-zinc-950 px-6 py-5 border border-zinc-800 shadow-2xl whitespace-nowrap z-[300] flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200 ${getPopupStyles(item.loc_x || 50, item.loc_y || 50)}`} onMouseDown={(e) => e.stopPropagation()}>
                     <div className="flex justify-between items-center gap-12">
                       <div className="flex flex-col gap-1">
                         <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white leading-none">{item.name}</span>
@@ -364,19 +344,13 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
                       </div>
                       <button 
                         onClick={() => handleDeIndexItem(item.id)}
-                        className="ignore-pin-interaction w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center text-[20px] font-bold hover:bg-red-700 transition-all shadow-xl active:scale-90"
+                        className="ignore-pin-interaction w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center text-[16px] font-bold hover:bg-red-700 transition-all shadow-xl active:scale-90"
                       >
                         ×
                       </button>
                     </div>
-
                     <div className="flex justify-between items-center border-t border-zinc-800 pt-4">
-                      <Link 
-                        to={`/item/${item.id}`} 
-                        className="ignore-pin-interaction text-[9px] uppercase tracking-widest font-bold text-white underline underline-offset-8 hover:text-zinc-300"
-                      >
-                        DETAILS
-                      </Link>
+                      <Link to={`/item/${item.id}`} className="ignore-pin-interaction text-[9px] uppercase tracking-widest font-bold text-white underline underline-offset-8 hover:text-zinc-300">DETAILS</Link>
                       <span className="text-[8px] uppercase tracking-widest font-bold text-zinc-600 italic ml-4">Hold to move</span>
                     </div>
                   </div>
@@ -384,18 +358,18 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
               </div>
             ))}
 
-            <div className="absolute bottom-10 right-10 flex gap-4">
+            <div className="absolute bottom-6 right-6 flex gap-4">
               <button 
                 onClick={() => setShowDeployDrawer(true)}
                 className="bg-zinc-950 px-6 py-3 text-[9px] font-bold uppercase tracking-widest text-white hover:bg-black shadow-xl border border-zinc-800"
               >
-                + Deploy Existing Unit
+                + DEPLOY UNIT
               </button>
-              <Link to="/add-room" state={{ parentId: currentRoomId }} className="bg-white px-6 py-3 text-[9px] font-bold uppercase tracking-widest text-black hover:bg-zinc-100 shadow-xl border border-zinc-900">+ Nest Sub-Node</Link>
+              <Link to="/add-room" state={{ parentId: currentRoomId }} className="bg-white px-6 py-3 text-[9px] font-bold uppercase tracking-widest text-black hover:bg-zinc-100 shadow-xl border border-zinc-900">+ NEST NODE</Link>
             </div>
           </div>
 
-          <div className="pt-24 border-t border-zinc-100">
+          <div className="w-full pt-24 border-t border-zinc-100">
              <div className="flex justify-between items-baseline mb-16">
                <h2 className="text-[14px] font-bold uppercase tracking-[0.5em] text-zinc-900 px-4 border-l-4 border-zinc-950">UNIT_ARCHIVE // {currentRoom?.name}</h2>
                <span className="text-[10px] text-zinc-300 font-bold uppercase tracking-widest">{roomItems.length} Registered Units</span>

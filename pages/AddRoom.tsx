@@ -127,7 +127,7 @@ const AddRoom: React.FC = () => {
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
-            className={`w-full aspect-video border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all bg-zinc-50 group ${isDragging ? 'border-zinc-950 bg-zinc-100' : 'border-zinc-100'}`}
+            className={`w-full aspect-square border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all bg-zinc-50 group ${isDragging ? 'border-zinc-950 bg-zinc-100' : 'border-zinc-100'}`}
           >
              <span className={`text-[40px] transition-colors ${isDragging ? 'text-zinc-950' : 'text-zinc-200 group-hover:text-zinc-950'}`}>+</span>
              <span className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${isDragging ? 'text-zinc-950' : 'text-zinc-300'}`}>
@@ -136,24 +136,24 @@ const AddRoom: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="relative aspect-video bg-zinc-900 border border-zinc-950 shadow-2xl overflow-hidden flex items-center justify-center">
+            <div className="relative w-full bg-zinc-900 border border-zinc-950 shadow-2xl overflow-hidden flex flex-col items-center justify-center">
               <img 
                 src={image} 
                 style={{ transform: `rotate(${rotation}deg)`, transition: 'transform 0.3s ease-out' }}
-                className="max-w-full max-h-full object-contain grayscale opacity-60" 
+                className="w-full h-auto grayscale opacity-80" 
               />
               <div className="absolute top-4 right-4 flex gap-2">
                 <button 
                   onClick={rotateImage}
-                  className="bg-white/90 backdrop-blur text-black text-[8px] font-bold px-4 py-2 uppercase shadow-xl hover:bg-white active:scale-95"
+                  className="bg-zinc-950/90 backdrop-blur text-white text-[8px] font-bold px-4 py-2 uppercase shadow-xl hover:bg-black active:scale-95"
                 >
-                  Rotate 90°
+                  ROTATE 90°
                 </button>
                 <button 
                   onClick={() => setImage(null)}
-                  className="bg-white/90 backdrop-blur text-black text-[8px] font-bold px-4 py-2 uppercase shadow-xl hover:bg-white active:scale-95"
+                  className="bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-[16px] font-bold shadow-xl hover:bg-red-700 active:scale-90"
                 >
-                  Reset
+                  ×
                 </button>
               </div>
             </div>
