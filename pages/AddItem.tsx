@@ -17,6 +17,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [step, setStep] = useState<'upload' | 'spatial' | 'details' | 'saving' | 'committed'>('upload');
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Data
   const [itemImage, setItemImage] = useState<string | null>(null);
@@ -38,9 +39,8 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
     });
   }, [ownerId]);
 
-  const handleItemImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  const processFile = (file: File) => {
+    if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (ev) => {
         setItemImage(ev.target?.result as string);
@@ -49,6 +49,18 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleItemImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
   };
 
   const handlePin = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -63,8 +75,6 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d')!;
-        
-        // Correctly handle dimension swapping for 90/270 degree rotations
         if (deg % 180 === 0) {
           canvas.width = img.width;
           canvas.height = img.height;
@@ -72,11 +82,9 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
           canvas.width = img.height;
           canvas.height = img.width;
         }
-
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((deg * Math.PI) / 180);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
-        
         canvas.toBlob((blob) => resolve(blob!), 'image/png', 0.95);
       };
       img.src = src;
@@ -89,7 +97,6 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
     
     try {
       const itemPath = `archives/${ownerId}/item_${Date.now()}.png`;
-      // Always use the baking protocol if rotation is present
       const finalBlob = rotation === 0 ? await (await fetch(itemImage!)).blob() : await getRotatedBlob(itemImage!, rotation);
       
       await supabase.storage.from('inventory').upload(itemPath, finalBlob);
@@ -125,9 +132,16 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       {step === 'upload' && (
         <div className="flex flex-col items-center space-y-12">
           <h1 className="text-[20px] uppercase tracking-[0.5em] font-bold text-zinc-950">ASSET_INTAKE</h1>
-          <label className="w-full aspect-square border-2 border-dashed border-zinc-100 flex flex-col items-center justify-center cursor-pointer hover:border-zinc-950 transition-all bg-zinc-50 group">
-             <span className="text-[48px] font-light text-zinc-200 group-hover:text-zinc-950">+</span>
-             <span className="text-[11px] uppercase tracking-[0.4em] text-zinc-300 font-bold mt-4">Upload Asset Source</span>
+          <label 
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            className={`w-full aspect-square border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all bg-zinc-50 group ${isDragging ? 'border-zinc-950 bg-zinc-100' : 'border-zinc-100'}`}
+          >
+             <span className={`text-[48px] font-light transition-colors ${isDragging ? 'text-zinc-950' : 'text-zinc-200 group-hover:text-zinc-950'}`}>+</span>
+             <span className={`text-[11px] uppercase tracking-[0.4em] font-bold mt-4 transition-colors ${isDragging ? 'text-zinc-950' : 'text-zinc-300'}`}>
+               {isDragging ? 'Drop to Sync' : 'Upload or Drag Asset'}
+             </span>
              <input type="file" onChange={handleItemImage} className="hidden" accept="image/*" />
           </label>
         </div>
@@ -148,7 +162,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
               </div>
               <button 
                 onClick={() => setRotation((r) => (r + 90) % 360)}
-                className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-950 border border-zinc-950 px-8 py-3 hover:bg-zinc-950 hover:text-white transition-all"
+                className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-950 border border-zinc-950 px-8 py-3 hover:bg-zinc-950 hover:text-white transition-all active:scale-95"
               >
                 [ ROTATE_90 ]
               </button>
@@ -179,7 +193,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
               </div>
             )}
           </div>
-          <button onClick={() => setStep('details')} className="w-full py-6 bg-zinc-950 text-white text-[12px] font-bold uppercase tracking-[0.5em] hover:bg-black transition-all shadow-2xl">PROCEED_TO_REGISTRY</button>
+          <button onClick={() => setStep('details')} className="w-full py-6 bg-zinc-950 text-white text-[12px] font-bold uppercase tracking-[0.5em] hover:bg-black transition-all shadow-2xl active:scale-95">PROCEED_TO_REGISTRY</button>
         </div>
       )}
 
@@ -206,7 +220,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
               </div>
             </div>
           </div>
-          <button onClick={saveProtocol} className="w-full py-7 bg-zinc-950 text-white text-[13px] font-bold uppercase tracking-[0.6em] hover:bg-black transition-all shadow-2xl">INITIALIZE_ARCHIVE</button>
+          <button onClick={saveProtocol} className="w-full py-7 bg-zinc-950 text-white text-[13px] font-bold uppercase tracking-[0.6em] hover:bg-black transition-all shadow-2xl active:scale-95">INITIALIZE_ARCHIVE</button>
         </div>
       )}
 

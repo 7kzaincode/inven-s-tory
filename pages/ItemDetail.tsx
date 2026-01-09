@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { Item, Profile, Room } from '../types';
 import { cleanStrict } from '../services/safetyService';
+import HandshakeModal from '../components/HandshakeModal';
 
 const CATEGORIES = ['FOOTWEAR', 'APPAREL', 'ACCESSORY', 'HARDWARE', 'MEDIA', 'FURNITURE', 'OBJECT'];
 const CONDITIONS = ['DEADSTOCK', 'VNDS', 'USED', 'ARCHIVAL', 'DISTRESSED'];
@@ -18,6 +19,7 @@ const ItemDetail: React.FC = () => {
   const [isOwner, setIsOwner] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Edit State
   const [editName, setEditName] = useState('');
@@ -75,13 +77,11 @@ const ItemDetail: React.FC = () => {
 
   const handleLocate = () => {
     if (item?.room_id) {
-      // Direct spatial trace navigation
       navigate('/atlas', { state: { roomId: item.room_id, highlightItemId: item.id } });
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm("DE-INDEX THIS UNIT FROM THE CENTRAL ARCHIVE? THIS ACTION IS PERMANENT.")) return;
+  const commitDeIndex = async () => {
     try {
       setSaving(true);
       const username = ownerProfile?.username;
@@ -95,8 +95,8 @@ const ItemDetail: React.FC = () => {
         navigate('/atlas');
       }
     } catch (err) {
-      alert("DE-INDEX FAILURE: Access Denied or Network Error.");
       setSaving(false);
+      setShowDeleteModal(false);
     }
   };
 
@@ -105,6 +105,15 @@ const ItemDetail: React.FC = () => {
 
   return (
     <div className="flex flex-col lg:flex-row w-full gap-16 lg:gap-32 py-12 animate-in fade-in duration-700">
+      
+      <HandshakeModal 
+        isOpen={showDeleteModal}
+        title="DE-INDEX UNIT"
+        message="YOU ARE ABOUT TO PERMANENTLY DE-INDEX THIS UNIT FROM THE CENTRAL ARCHIVE. THIS ACTION CANNOT BE REVERSED."
+        onConfirm={commitDeIndex}
+        onCancel={() => setShowDeleteModal(false)}
+      />
+
       <div className="w-full lg:w-1/2 flex flex-col space-y-12">
         <div className="aspect-square bg-[#FDFDFD] border border-zinc-100 p-12 flex items-center justify-center shadow-inner group relative">
           <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-1000" />
@@ -180,7 +189,7 @@ const ItemDetail: React.FC = () => {
                        <button onClick={handleLocate} className="text-center py-5 bg-zinc-950 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">LOCATE IN ATLAS</button>
                      )}
                      <Link to={`/profile/${ownerProfile?.username}`} className="text-center py-5 border border-zinc-900 text-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-50 transition-all">RETURN_TO_ARCHIVE</Link>
-                     <button onClick={handleDelete} className="text-center py-5 border border-red-600 text-red-600 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-red-50 transition-all mt-4">DE-INDEX UNIT</button>
+                     <button onClick={() => setShowDeleteModal(true)} className="text-center py-5 border border-red-600 text-red-600 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-red-50 transition-all mt-4">DE-INDEX UNIT</button>
                    </>
                  ) : (
                    <Link to={`/messages/${item.owner_id}`} className="text-center py-5 border border-zinc-950 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-50 transition-all text-zinc-900">MESSAGE ARCHIVIST</Link>

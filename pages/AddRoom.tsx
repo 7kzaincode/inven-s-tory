@@ -12,13 +12,13 @@ const AddRoom: React.FC = () => {
 
   const [name, setName] = useState('');
   const [image, setImage] = useState<string | null>(null);
-  const [rotation, setRotation] = useState(0); // 0, 90, 180, 270
+  const [rotation, setRotation] = useState(0); 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  const processFile = (file: File) => {
+    if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (ev) => {
         setImage(ev.target?.result as string);
@@ -26,6 +26,18 @@ const AddRoom: React.FC = () => {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
   };
 
   const rotateImage = () => {
@@ -38,7 +50,6 @@ const AddRoom: React.FC = () => {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d')!;
-        
         if (deg % 180 === 0) {
           canvas.width = img.width;
           canvas.height = img.height;
@@ -46,11 +57,9 @@ const AddRoom: React.FC = () => {
           canvas.width = img.height;
           canvas.height = img.width;
         }
-
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((deg * Math.PI) / 180);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
-        
         canvas.toBlob((blob) => resolve(blob!), 'image/png', 0.9);
       };
       img.src = src;
@@ -66,8 +75,6 @@ const AddRoom: React.FC = () => {
       if (!user) throw new Error("AUTH_FAILURE");
 
       const path = `archives/${user.id}/room_${Date.now()}.png`;
-      
-      // Bake rotation before upload
       const finalBlob = rotation === 0 ? await (await fetch(image)).blob() : await getRotatedBlob(image, rotation);
       
       await supabase.storage.from('inventory').upload(path, finalBlob);
@@ -99,7 +106,7 @@ const AddRoom: React.FC = () => {
       </header>
 
       {error && (
-        <div className="mb-10 p-6 bg-red-600 text-white text-[11px] font-bold uppercase tracking-widest text-center shadow-2xl">
+        <div className="mb-10 p-6 bg-red-600 text-white text-[11px] font-bold uppercase tracking-widest text-center shadow-2xl animate-pulse">
           {error}
         </div>
       )}
@@ -109,7 +116,7 @@ const AddRoom: React.FC = () => {
           <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Node Identifier</label>
           <input 
             value={name} onChange={e => setName(e.target.value)} 
-            className="w-full border-b-2 border-zinc-950 py-4 text-[18px] uppercase font-bold outline-none bg-transparent" 
+            className="w-full border-b-2 border-zinc-950 py-4 text-[18px] uppercase font-bold outline-none bg-transparent focus:bg-zinc-50 transition-all" 
             placeholder="e.g. UPPER_VAULT" 
           />
         </div>
@@ -117,10 +124,15 @@ const AddRoom: React.FC = () => {
         {!image ? (
           <div 
             onClick={() => fileInputRef.current?.click()}
-            className="w-full aspect-video border-2 border-dashed border-zinc-100 bg-zinc-50 flex flex-col items-center justify-center cursor-pointer hover:border-zinc-950 transition-all group"
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            className={`w-full aspect-video border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all bg-zinc-50 group ${isDragging ? 'border-zinc-950 bg-zinc-100' : 'border-zinc-100'}`}
           >
-             <span className="text-[40px] text-zinc-200 group-hover:text-zinc-950">+</span>
-             <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Upload Context Source</span>
+             <span className={`text-[40px] transition-colors ${isDragging ? 'text-zinc-950' : 'text-zinc-200 group-hover:text-zinc-950'}`}>+</span>
+             <span className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${isDragging ? 'text-zinc-950' : 'text-zinc-300'}`}>
+               {isDragging ? 'Release to Initialize' : 'Upload or Drag Context Source'}
+             </span>
           </div>
         ) : (
           <div className="space-y-4">
@@ -133,26 +145,26 @@ const AddRoom: React.FC = () => {
               <div className="absolute top-4 right-4 flex gap-2">
                 <button 
                   onClick={rotateImage}
-                  className="bg-white/90 backdrop-blur text-black text-[8px] font-bold px-4 py-2 uppercase shadow-xl hover:bg-white"
+                  className="bg-white/90 backdrop-blur text-black text-[8px] font-bold px-4 py-2 uppercase shadow-xl hover:bg-white active:scale-95"
                 >
                   Rotate 90°
                 </button>
                 <button 
                   onClick={() => setImage(null)}
-                  className="bg-white/90 backdrop-blur text-black text-[8px] font-bold px-4 py-2 uppercase shadow-xl hover:bg-white"
+                  className="bg-white/90 backdrop-blur text-black text-[8px] font-bold px-4 py-2 uppercase shadow-xl hover:bg-white active:scale-95"
                 >
                   Reset
                 </button>
               </div>
             </div>
-            <p className="text-[9px] text-zinc-400 uppercase tracking-widest text-center">Verify orientation before initialization</p>
+            <p className="text-[9px] text-zinc-400 uppercase tracking-widest text-center italic">Verify orientation before initialization</p>
           </div>
         )}
         <input type="file" ref={fileInputRef} onChange={handleImage} className="hidden" accept="image/*" />
 
         <button 
           onClick={saveNode} disabled={saving || !name || !image}
-          className="w-full py-7 bg-zinc-950 text-white text-[12px] font-bold uppercase tracking-[0.6em] hover:bg-black transition-all disabled:opacity-20 shadow-2xl"
+          className="w-full py-7 bg-zinc-950 text-white text-[12px] font-bold uppercase tracking-[0.6em] hover:bg-black transition-all disabled:opacity-20 shadow-2xl active:scale-95"
         >
           {saving ? 'ESTABLISHING...' : 'INITIALIZE SPATIAL NODE'}
         </button>
