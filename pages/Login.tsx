@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { isValidHandle } from '../services/safetyService';
+import { isValidHandle, cleanHandle } from '../services/safetyService';
 
 const Login: React.FC = () => {
   const location = useLocation();
@@ -48,8 +48,8 @@ const Login: React.FC = () => {
 
     try {
       if (mode === 'signup') {
-        const cleanUsername = username.replace('@', '').trim();
-        const validation = isValidHandle(cleanUsername);
+        const cleanU = cleanHandle(username.replace('@', ''));
+        const validation = isValidHandle(cleanU);
         
         if (!validation.valid) {
           setError(validation.error);
@@ -62,7 +62,7 @@ const Login: React.FC = () => {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/#/login`,
-            data: { username: cleanUsername }
+            data: { username: cleanU }
           }
         });
 
@@ -143,13 +143,14 @@ const Login: React.FC = () => {
         
         {mode === 'signup' && (
           <div className="flex flex-col space-y-2">
-            <label className="text-[10px] uppercase tracking-[0.2em] text-gray-400 ml-1 font-bold">Username</label>
+            <label className="text-[10px] uppercase tracking-[0.2em] text-gray-400 ml-1 font-bold">Username ({username.length}/30)</label>
             <input 
               type="text" 
               placeholder="@username" 
+              maxLength={30}
               className="w-full border-b border-gray-100 py-4 text-[13px] tracking-[0.1em] focus:outline-none focus:border-black transition-colors bg-transparent font-medium"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => setUsername(cleanHandle(e.target.value))}
               required
             />
           </div>

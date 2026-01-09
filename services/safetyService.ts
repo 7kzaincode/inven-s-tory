@@ -25,11 +25,28 @@ export function censor(text: string): string {
 }
 
 /**
+ * Filters a string to only include alphanumeric characters and spaces.
+ */
+export function cleanStrict(text: string, allowPunctuation = false): string {
+  if (!text) return "";
+  const regex = allowPunctuation ? /[^a-zA-Z0-9\s.,!?]/g : /[^a-zA-Z0-9\s]/g;
+  return text.replace(regex, '');
+}
+
+/**
+ * Filters a string for strict alphanumeric (no spaces), ideal for handles.
+ */
+export function cleanHandle(text: string): string {
+  return text.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+}
+
+/**
  * Validates a username.
  */
 export function isValidHandle(username: string): { valid: boolean; error: string | null } {
   const clean = username.replace('@', '').trim();
   if (clean.length < 3) return { valid: false, error: "HANDLE TOO SHORT" };
+  if (clean.length > 30) return { valid: false, error: "HANDLE TOO LONG" };
   if (!/^[a-zA-Z0-9_]+$/.test(clean)) return { valid: false, error: "ALPHANUMERIC ONLY" };
   if (!isClean(clean)) return { valid: false, error: "HANDLE NON-COMPLIANT" };
   return { valid: true, error: null };

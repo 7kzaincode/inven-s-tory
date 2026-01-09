@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { Item, Profile } from '../types';
+import { cleanStrict } from '../services/safetyService';
 
 const CATEGORIES = ['FOOTWEAR', 'APPAREL', 'ACCESSORY', 'HARDWARE', 'MEDIA', 'FURNITURE', 'OBJECT'];
 const CONDITIONS = ['DEADSTOCK', 'VNDS', 'USED', 'ARCHIVAL', 'DISTRESSED'];
@@ -56,7 +57,7 @@ const ItemDetail: React.FC = () => {
   const handleUpdate = async () => {
     setSaving(true);
     const { error } = await supabase.from('items').update({
-        name: editName,
+        name: cleanStrict(editName),
         category: editCategory,
         condition: editCondition,
         price: editForSale ? editPrice : null,
@@ -111,8 +112,8 @@ const ItemDetail: React.FC = () => {
         {isEditing ? (
           <div className="space-y-10 animate-in fade-in">
              <div className="space-y-2">
-                <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Archival Name</label>
-                <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full border-b border-zinc-900 py-2 text-[18px] uppercase tracking-[0.1em] font-bold outline-none focus:bg-zinc-50 transition-colors" />
+                <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Archival Name ({editName.length}/128)</label>
+                <input maxLength={128} value={editName} onChange={e => setEditName(cleanStrict(e.target.value))} className="w-full border-b border-zinc-900 py-2 text-[18px] uppercase tracking-[0.1em] font-bold outline-none focus:bg-zinc-50 transition-colors" />
              </div>
              
              <div className="space-y-4">

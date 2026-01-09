@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { Profile, PublicTradeAd, Item } from '../types';
+import { cleanStrict } from '../services/safetyService';
 
 // HARDCODED LEGACY DATA FOR RECRUITERS
 const LEGACY_ARCHIVISTS = [
@@ -59,7 +60,7 @@ const LEGACY_BULLETINS = [
     created_at: new Date().toISOString(),
     owner: LEGACY_ARCHIVISTS[0],
     items: [
-      { id: 'li-1', name: 'UNIT_ALPHA', image_url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=400&auto=format&fit=crop', category: 'OBJECT' }
+      { id: 'li-1', name: 'UNIT_ALPHA', image_url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=400&auto=format&fit=crop', category: 'OBJECT', condition: 'ARCHIVAL' }
     ]
   },
   {
@@ -70,7 +71,7 @@ const LEGACY_BULLETINS = [
     created_at: new Date().toISOString(),
     owner: LEGACY_ARCHIVISTS[1],
     items: [
-      { id: 'li-2', name: 'OPTIC_V3', image_url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop', category: 'HARDWARE' }
+      { id: 'li-2', name: 'OPTIC_V3', image_url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop', category: 'HARDWARE', condition: 'VNDS' }
     ]
   },
   {
@@ -90,7 +91,7 @@ const LEGACY_BULLETINS = [
     created_at: new Date().toISOString(),
     owner: LEGACY_ARCHIVISTS[5],
     items: [
-       { id: 'li-3', name: 'TRANSLUCENT_NODE', image_url: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?q=80&w=400&auto=format&fit=crop', category: 'HARDWARE' }
+       { id: 'li-3', name: 'TRANSLUCENT_NODE', image_url: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?q=80&w=400&auto=format&fit=crop', category: 'HARDWARE', condition: 'USED' }
     ]
   }
 ];
@@ -185,6 +186,21 @@ const Explore: React.FC = () => {
     ? [...LEGACY_BULLETINS, ...tradeAds]
     : tradeAds;
 
+  // REUSABLE STATS OVERLAY
+  const ItemStatOverlay = ({ item }: { item: any }) => (
+    <div className="absolute inset-0 bg-zinc-950/90 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center p-2 text-center space-y-2 z-20 pointer-events-none">
+      <span className="text-[7px] text-white font-bold uppercase tracking-widest truncate w-full">{item.name}</span>
+      <div className="space-y-0.5">
+        <span className="text-[5px] uppercase tracking-[0.2em] text-zinc-500 font-bold block">CATEGORY</span>
+        <span className="text-[7px] uppercase tracking-widest text-zinc-300 font-bold">{item.category}</span>
+      </div>
+      <div className="space-y-0.5">
+        <span className="text-[5px] uppercase tracking-[0.2em] text-zinc-500 font-bold block">CONDITION</span>
+        <span className="text-[7px] uppercase tracking-widest text-zinc-300 font-bold">{item.condition}</span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full flex flex-col items-center space-y-24 animate-in fade-in duration-1000 relative">
       
@@ -199,7 +215,8 @@ const Explore: React.FC = () => {
         <div className="relative">
           <input 
             type="text" placeholder="SEARCH ARCHIVE IDENTITY..."
-            value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            maxLength={128}
+            value={searchQuery} onChange={(e) => setSearchQuery(cleanStrict(e.target.value))}
             onKeyDown={(e) => e.key === 'Enter' && fetchArchives()}
             className="w-full bg-zinc-50 border border-zinc-100 px-10 py-7 text-[14px] uppercase tracking-[0.25em] focus:border-zinc-900 outline-none text-zinc-900 placeholder:text-zinc-300 font-bold transition-all shadow-sm"
           />
@@ -263,12 +280,13 @@ const Explore: React.FC = () => {
                 {ad.items && ad.items.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-8">
                     {ad.items.map((it: any) => (
-                      <div key={it.id} className="aspect-square bg-white border border-zinc-50 relative group/item">
-                        <img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply" />
-                        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center justify-center p-1">
-                           <span className="text-[7px] text-white font-bold uppercase tracking-tighter text-center">{it.name}</span>
-                        </div>
-                      </div>
+                      <Link key={it.id} to={`/item/${it.id}`} className="aspect-square bg-white border border-zinc-50 relative group/item overflow-hidden">
+                        <img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply transition-transform duration-500 group-hover/item:scale-110" />
+                        <ItemStatOverlay item={it} />
+                        {it.owner_id === currentUserId && (
+                          <div className="absolute top-0 right-0 bg-zinc-950 text-white text-[6px] px-1 font-bold z-30">MY UNIT</div>
+                        )}
+                      </Link>
                     ))}
                   </div>
                 )}

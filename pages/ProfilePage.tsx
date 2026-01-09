@@ -5,6 +5,7 @@ import InventoryGrid from '../components/InventoryGrid';
 import { supabase } from '../services/supabase';
 import { Item, Profile, Friend } from '../types';
 import { processImageWithAI } from '../services/geminiService';
+import { cleanHandle, cleanStrict } from '../services/safetyService';
 
 // Fallback legacy profile data
 const LEGACY_DATA: Record<string, any> = {
@@ -243,9 +244,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
              <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] border-b border-zinc-50 pb-4 mb-6 text-black">IDENTITY CONTROL</h4>
              <div className="space-y-6">
                 <div className="space-y-2">
-                   <label className="text-[8px] uppercase tracking-widest text-zinc-400 font-bold">Update Handle</label>
+                   <label className="text-[8px] uppercase tracking-widest text-zinc-400 font-bold">Update Handle ({newUsername.length}/30)</label>
                    <div className="flex gap-2">
-                     <input value={newUsername} onChange={e => setNewUsername(e.target.value.toLowerCase())} className="flex-1 border-b border-zinc-900 py-1 text-[12px] font-bold outline-none" />
+                     <input maxLength={30} value={newUsername} onChange={e => setNewUsername(cleanHandle(e.target.value))} className="flex-1 border-b border-zinc-900 py-1 text-[12px] font-bold outline-none" />
                      <button onClick={handleUpdateUsername} disabled={actionLoading} className="text-[9px] font-bold uppercase underline">Update</button>
                    </div>
                 </div>
@@ -292,7 +293,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
         <div className="w-full max-w-lg mt-12 text-center">
           {isEditing ? (
             <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4">
-              <textarea value={editBio} onChange={e => setEditBio(e.target.value)} placeholder="IDENTITY BIOGRAPHY..." className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 resize-none text-black shadow-inner" />
+              <textarea 
+                maxLength={256}
+                value={editBio} onChange={e => setEditBio(cleanStrict(e.target.value, true))} 
+                placeholder="IDENTITY BIOGRAPHY..." 
+                className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 resize-none text-black shadow-inner" 
+              />
+              <div className="text-[9px] text-right font-bold text-zinc-300 uppercase tracking-widest">{editBio.length}/256</div>
               <div className="flex gap-6">
                 <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all">Commit</button>
                 <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] text-black hover:bg-zinc-50">Cancel</button>

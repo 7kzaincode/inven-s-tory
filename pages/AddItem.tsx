@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { isClean } from '../services/safetyService';
+import { isClean, cleanStrict } from '../services/safetyService';
 import { Item } from '../types';
 
 interface AddItemProps {
@@ -79,7 +79,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       const { data: { publicUrl } } = supabase.storage.from('inventory').getPublicUrl(filePath);
       const { error: dbError } = await supabase.from('items').insert([{
         owner_id: ownerId, 
-        name, 
+        name: cleanStrict(name), 
         image_url: publicUrl, 
         public: isPublic,
         for_sale: isForSale, 
@@ -105,8 +105,8 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
     setLoading(true);
     const { error } = await supabase.from('trade_ads').insert({
       owner_id: ownerId,
-      text: bulletinText,
-      looking_for: lookingFor,
+      text: cleanStrict(bulletinText, true),
+      looking_for: cleanStrict(lookingFor, true),
       offering_ids: selectedForBulletin
     });
     if (!error) navigate('/');
@@ -141,18 +141,20 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
 
         <div className="w-full space-y-8">
           <div className="space-y-2">
-            <label className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold ml-1">Message</label>
+            <label className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold ml-1">Message ({bulletinText.length}/500)</label>
             <textarea 
-              value={bulletinText} onChange={e => setBulletinText(e.target.value)}
+              maxLength={500}
+              value={bulletinText} onChange={e => setBulletinText(cleanStrict(e.target.value, true))}
               placeholder="Ex: Looking to downsize my archival hardware collection. Open to trades for apparel."
               className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 resize-none text-black shadow-inner focus:border-zinc-900 transition-all"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold ml-1">Looking For</label>
+            <label className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold ml-1">Looking For ({lookingFor.length}/256)</label>
             <input 
-              value={lookingFor} onChange={e => setLookingFor(e.target.value)}
+              maxLength={256}
+              value={lookingFor} onChange={e => setLookingFor(cleanStrict(e.target.value, true))}
               placeholder="Ex: Furniture, Media"
               className="w-full bg-zinc-50 border border-zinc-100 p-6 text-[13px] font-bold tracking-widest outline-none focus:border-zinc-900 transition-all"
             />
@@ -230,7 +232,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
             <img src={sourceImage!} className="w-full h-full object-contain mix-blend-multiply" />
           </div>
           <div className="space-y-10">
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="UNIT NAME" className="w-full border-b border-zinc-900 py-4 text-[16px] uppercase tracking-widest font-bold outline-none bg-transparent" />
+            <input maxLength={128} value={name} onChange={e => setName(cleanStrict(e.target.value))} placeholder="UNIT NAME" className="w-full border-b border-zinc-900 py-4 text-[16px] uppercase tracking-widest font-bold outline-none bg-transparent" />
             
             <div className="flex items-center gap-6 p-4 bg-zinc-50 border border-zinc-100 cursor-pointer" onClick={() => setIsPublic(!isPublic)}>
                <div className={`w-10 h-5 border transition-all relative ${isPublic ? 'bg-zinc-900 border-zinc-900' : 'bg-white border-zinc-200'}`}>

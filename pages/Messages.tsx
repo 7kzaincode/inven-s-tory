@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { censor, isClean } from '../services/safetyService';
+import { censor, isClean, cleanStrict } from '../services/safetyService';
 import { Profile, Message } from '../types';
 
 const Messages: React.FC = () => {
@@ -94,7 +94,7 @@ const Messages: React.FC = () => {
       return;
     }
 
-    const msgText = censor(inputText);
+    const msgText = censor(cleanStrict(inputText, true));
     setInputText(''); 
     setIsSending(true);
 
@@ -159,7 +159,13 @@ const Messages: React.FC = () => {
             </div>
 
             <form onSubmit={sendMessage} className="p-10 border-t border-zinc-100 bg-white flex gap-6 items-center">
-              <input value={inputText} onChange={e => setInputText(e.target.value)} placeholder="PROPOSE DIALOGUE..." className="flex-1 bg-zinc-50 text-[13px] tracking-widest font-bold outline-none border border-zinc-100 px-8 py-6 focus:border-zinc-900 focus:bg-white" autoComplete="off" />
+              <input 
+                maxLength={256}
+                value={inputText} onChange={e => setInputText(cleanStrict(e.target.value, true))} 
+                placeholder="PROPOSE DIALOGUE..." 
+                className="flex-1 bg-zinc-50 text-[13px] tracking-widest font-bold outline-none border border-zinc-100 px-8 py-6 focus:border-zinc-900 focus:bg-white" 
+                autoComplete="off" 
+              />
               <button type="submit" disabled={!inputText.trim() || isSending} className="px-12 py-6 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl active:scale-95">Send</button>
             </form>
           </>
