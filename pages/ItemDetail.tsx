@@ -57,7 +57,7 @@ const ItemDetail: React.FC = () => {
         name: editName,
         category: editCategory,
         condition: editCondition,
-        price: editPrice,
+        price: editForSale ? editPrice : null,
         for_sale: editForSale,
         for_trade: editForTrade
       }).eq('id', id);
@@ -122,6 +122,23 @@ const ItemDetail: React.FC = () => {
                  </select>
                </div>
              </div>
+
+             <div className="flex gap-12 items-center pt-4">
+              <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setEditForSale(!editForSale)}>
+                <div className={`w-5 h-5 border transition-all ${editForSale ? 'bg-zinc-900 border-zinc-900 shadow-md' : 'border-zinc-200 group-hover:border-zinc-400'}`}>
+                  {editForSale && <span className="text-white text-[10px] flex items-center justify-center h-full">✓</span>}
+                </div>
+                <label className="text-[10px] font-bold uppercase tracking-widest group-hover:text-black transition-colors">Sale</label>
+              </div>
+              <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setEditForTrade(!editForTrade)}>
+                <div className={`w-5 h-5 border transition-all ${editForTrade ? 'bg-zinc-900 border-zinc-900 shadow-md' : 'border-zinc-200 group-hover:border-zinc-400'}`}>
+                  {editForTrade && <span className="text-white text-[10px] flex items-center justify-center h-full">✓</span>}
+                </div>
+                <label className="text-[10px] font-bold uppercase tracking-widest group-hover:text-black transition-colors">Trade</label>
+              </div>
+              {editForSale && <input type="number" value={editPrice} onChange={e => setEditPrice(Number(e.target.value))} className="flex-1 border-b border-zinc-900 text-[14px] font-bold outline-none text-right bg-transparent" placeholder="$" />}
+            </div>
+
              <div className="flex gap-4 pt-8">
                <button onClick={handleUpdate} disabled={saving} className="flex-1 py-4 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all shadow-xl">COMMIT</button>
                <button onClick={() => setIsEditing(false)} className="flex-1 py-4 border border-zinc-900 text-[11px] font-bold uppercase tracking-widest hover:bg-zinc-50 transition-all">CANCEL</button>
@@ -162,7 +179,7 @@ const ItemDetail: React.FC = () => {
                    <Link to="/my-space" className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl active:scale-95">MANAGE ARCHIVE</Link>
                  ) : (
                    <>
-                    <Link to={`/trade/${ownerProfile?.username}`} className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl active:scale-95">PROPOSE HANDSHAKE</Link>
+                    <Link to={`/trade/${ownerProfile?.username}`} className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl active:scale-95">PROPOSE TRADE</Link>
                     <Link to={`/messages/${item.owner_id}`} className="text-center py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-50 transition-all text-zinc-900">MESSAGE ARCHIVIST</Link>
                    </>
                  )}
