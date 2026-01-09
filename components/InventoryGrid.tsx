@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Item } from '../types.ts';
+import { Item } from '../types';
 import { Link } from 'react-router-dom';
 
 interface InventoryGridProps {
@@ -21,7 +21,6 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({ items, isOwner }) => {
               loading="lazy"
             />
             
-            {/* STATS OVERLAY ON HOVER */}
             <div className="absolute inset-0 bg-zinc-950/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center p-6 text-center space-y-4">
                <div className="space-y-1">
                  <span className="text-[8px] uppercase tracking-[0.4em] text-zinc-500 font-bold block">CATEGORY</span>

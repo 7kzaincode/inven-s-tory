@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Profile } from '../types.ts';
+import { Profile } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;

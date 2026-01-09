@@ -1,9 +1,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../services/supabase.ts';
-import { Item, Profile, Room } from '../types.ts';
-import { cleanStrict } from '../services/safetyService.ts';
+import { supabase } from '../services/supabase';
+import { Item, Profile, Room } from '../types';
+import { cleanStrict } from '../services/safetyService';
 
 const CATEGORIES = ['FOOTWEAR', 'APPAREL', 'ACCESSORY', 'HARDWARE', 'MEDIA', 'FURNITURE', 'OBJECT'];
 const CONDITIONS = ['DEADSTOCK', 'VNDS', 'USED', 'ARCHIVAL', 'DISTRESSED'];

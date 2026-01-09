@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../services/supabase.ts';
-import { Item, Profile } from '../types.ts';
+import { supabase } from '../services/supabase';
+import { Item, Profile } from '../types';
 
 interface TradeBuilderProps {
   currentUser: Profile;
@@ -88,7 +88,6 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 w-full gap-8 items-start">
-        {/* Left Side: My Assets */}
         <div className="col-span-1 border border-zinc-100 p-6 bg-white min-h-[400px] shadow-sm">
           <h3 className="text-[9px] uppercase tracking-widest text-zinc-400 mb-6 text-center font-bold">MY ASSETS</h3>
           <div className="grid grid-cols-2 gap-4">
@@ -109,7 +108,6 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
           </div>
         </div>
 
-        {/* Center: THE BOARD */}
         <div className="col-span-2 space-y-8">
           <div 
             onDragOver={(e) => e.preventDefault()}
@@ -165,7 +163,6 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
           </button>
         </div>
 
-        {/* Right Side: Their Assets */}
         <div className="col-span-1 border border-zinc-100 p-6 bg-white min-h-[400px] shadow-sm">
           <h3 className="text-[9px] uppercase tracking-widest text-zinc-400 mb-6 text-center font-bold">THEIR ARCHIVE</h3>
           <div className="grid grid-cols-2 gap-4">
@@ -187,7 +184,6 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
         </div>
       </div>
 
-      {/* Item Preview Modal */}
       {previewItem && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-white/95 backdrop-blur-sm p-6" onClick={() => setPreviewItem(null)}>
           <div className="max-w-md w-full p-12 bg-white border border-zinc-100 shadow-2xl animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>

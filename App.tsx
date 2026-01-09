@@ -1,20 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout.tsx';
-import Explore from './pages/Explore.tsx';
-import AddItem from './pages/AddItem.tsx';
-import AddRoom from './pages/AddRoom.tsx';
-import Login from './pages/Login.tsx';
-import ProfilePage from './pages/ProfilePage.tsx';
-import ItemDetail from './pages/ItemDetail.tsx';
-import Friends from './pages/Friends.tsx';
-import Inbox from './pages/Inbox.tsx';
-import Atlas from './pages/Atlas.tsx';
-import TradeBuilder from './pages/TradeBuilder.tsx';
-import About from './pages/About.tsx';
-import { UserSession, Profile } from './types.ts';
-import { supabase } from './services/supabase.ts';
+import Layout from './components/Layout';
+import Explore from './pages/Explore';
+import AddItem from './pages/AddItem';
+import AddRoom from './pages/AddRoom';
+import Login from './pages/Login';
+import ProfilePage from './pages/ProfilePage';
+import ItemDetail from './pages/ItemDetail';
+import Friends from './pages/Friends';
+import Inbox from './pages/Inbox';
+import Atlas from './pages/Atlas';
+import TradeBuilder from './pages/TradeBuilder';
+import About from './pages/About';
+import { UserSession, Profile } from './types';
+import { supabase } from './services/supabase';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<UserSession>({
