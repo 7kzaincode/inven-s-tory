@@ -70,13 +70,13 @@ const ItemDetail: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("ARE YOU SURE YOU WANT TO DE-INDEX THIS UNIT FROM THE CENTRAL ARCHIVE?")) return;
+    if (!window.confirm("DE-INDEX THIS UNIT FROM THE CENTRAL ARCHIVE?")) return;
     const { error } = await supabase.from('items').delete().eq('id', id);
     if (!error) navigate('/my-space');
   };
 
   if (loading) return <div className="py-32 text-center text-[10px] uppercase font-bold tracking-widest animate-pulse">Querying Archive Node...</div>;
-  if (!item) return <div className="py-24 text-center text-[11px] uppercase font-bold tracking-widest">Unit de-indexed or missing</div>;
+  if (!item) return <div className="py-24 text-center text-[11px] uppercase font-bold tracking-widest">Unit missing</div>;
 
   return (
     <div className="flex flex-col lg:flex-row w-full gap-16 lg:gap-32 py-12 animate-in fade-in duration-700">
@@ -166,20 +166,14 @@ const ItemDetail: React.FC = () => {
                   <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-900">ID_{item.id.slice(0, 8)}</span>
                   <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Market Price</span>
                   <span className="text-[14px] font-bold text-zinc-900">{item.price ? `$${item.price.toLocaleString()}` : 'VAULTED'}</span>
-                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Circulation Status</span>
-                  <div className="flex flex-col gap-2">
-                    {item.for_sale && <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-900">AVAILABLE FOR PURCHASE</span>}
-                    {item.for_trade && <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-900">OPEN TO PROPOSALS</span>}
-                    {!item.for_sale && !item.for_trade && <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-300 italic">PRIVATE HOLDING</span>}
-                  </div>
                </div>
 
                <div className="flex flex-col gap-4 pt-10">
                  {isOwner ? (
-                   <Link to="/my-space" className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl active:scale-95">MANAGE ARCHIVE</Link>
+                   <Link to="/my-space" className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">MANAGE ARCHIVE</Link>
                  ) : (
                    <>
-                    <Link to={`/trade/${ownerProfile?.username}`} className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl active:scale-95">PROPOSE TRADE</Link>
+                    <Link to={`/trade/${ownerProfile?.username}`} className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">PROPOSE TRADE</Link>
                     <Link to={`/messages/${item.owner_id}`} className="text-center py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-50 transition-all text-zinc-900">MESSAGE ARCHIVIST</Link>
                    </>
                  )}

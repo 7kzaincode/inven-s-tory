@@ -11,7 +11,7 @@ interface ProfilePageProps {
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
-  const { username } = useParams<{ username: string }>();
+  const { username: routeUsername } = useParams<{ username: string }>();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -22,30 +22,50 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [editBio, setEditBio] = useState('');
+  const [newUsername, setNewUsername] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  
+  // STATS
+  const [stats, setStats] = useState({ totalVal: 0, liquidCount: 0, privateCount: 0 });
 
   useEffect(() => {
     fetchProfileAndItems();
-  }, [username]);
+  }, [routeUsername]);
 
   const fetchProfileAndItems = async () => {
     setLoading(true);
-    const { data: profile } = await supabase.from('profiles').select('*').eq('username', username).single();
+    const { data: profile } = await supabase.from('profiles').select('*').eq('username', routeUsername).single();
     if (!profile) {
       setLoading(false);
       return;
     }
     setTargetProfile(profile as Profile);
+    setNewUsername(profile.username);
     
-    // Only set bio if not currently editing to prevent overwriting user input
-    if (!isEditing) {
-      setEditBio(profile.bio || '');
-    }
+    if (!isEditing) setEditBio(profile.bio || '');
 
     const { data: itemsData } = await supabase.from('items').select('*').eq('owner_id', profile.id).order('created_at', { ascending: false });
-    if (itemsData) setItems(itemsData as Item[]);
+    if (itemsData) {
+      setItems(itemsData as Item[]);
+      const total = itemsData.reduce((acc, it) => acc + (it.price || 0), 0);
+      const liquid = itemsData.filter(it => it.for_trade || it.for_sale).length;
+      setStats({ totalVal: total, liquidCount: liquid, privateCount: itemsData.length - liquid });
+    }
 
     setLoading(false);
+  };
+
+  const handleUpdateUsername = async () => {
+    if (!newUsername || newUsername === targetProfile?.username) return;
+    setActionLoading(true);
+    const { error } = await supabase.from('profiles').update({ username: newUsername }).eq('id', currentUser?.id);
+    if (error) {
+      alert("HANDLE UNAVAILABLE.");
+    } else {
+      navigate(`/profile/${newUsername}`);
+      setShowSettings(false);
+    }
+    setActionLoading(false);
   };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,31 +111,17 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
   };
 
   const handlePurgeIdentity = async () => {
-    if (!window.confirm("WARNING: THIS WILL PERMANENTLY DE-INDEX YOUR IDENTITY AND ALL ASSETS. THIS ACTION IS IRREVERSIBLE. PROCEED?")) return;
-    
+    if (!window.confirm("PERMANENTLY DE-INDEX ALL ASSETS?")) return;
     setActionLoading(true);
     try {
       const uid = currentUser?.id;
       if (!uid) return;
-
-      // Atomic cleanup
-      await supabase.from('trades').delete().or(`sender_id.eq.${uid},receiver_id.eq.${uid}`);
-      await supabase.from('trade_ads').delete().eq('owner_id', uid);
-      await supabase.from('messages').delete().or(`sender_id.eq.${uid},receiver_id.eq.${uid}`);
-      await supabase.from('friends').delete().or(`requester_id.eq.${uid},receiver_id.eq.${uid}`);
-      await supabase.from('item_history').delete().or(`from_owner_id.eq.${uid},to_owner_id.eq.${uid}`);
       await supabase.from('items').delete().eq('owner_id', uid);
-      
-      const { error: profileError } = await supabase.from('profiles').delete().eq('id', uid);
-      if (profileError) throw profileError;
-
+      await supabase.from('profiles').delete().eq('id', uid);
       await supabase.auth.signOut();
       window.location.href = '/';
-    } catch (e: any) {
-      alert(`IDENTITY PURGE FAILURE: ${e.message}`);
-    } finally {
-      setActionLoading(false);
-    }
+    } catch (e) { alert("PURGE FAILURE"); }
+    setActionLoading(false);
   };
 
   if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-900 animate-pulse">Syncing Archive Identity...</div>;
@@ -137,10 +143,17 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
         )}
 
         {showSettings && isSelf && (
-          <div className="absolute top-16 right-0 w-64 bg-white border border-zinc-100 shadow-2xl z-50 p-8 animate-in slide-in-from-top-4 duration-300">
-             <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] border-b border-zinc-50 pb-4 mb-6 text-black">SETTINGS</h4>
+          <div className="absolute top-16 right-0 w-80 bg-white border border-zinc-100 shadow-2xl z-50 p-8 animate-in slide-in-from-top-4 duration-300">
+             <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] border-b border-zinc-50 pb-4 mb-6 text-black">IDENTITY CONTROL</h4>
              <div className="space-y-6">
-                <button onClick={startEditing} className="w-full text-left text-[11px] uppercase tracking-widest font-bold text-black hover:text-zinc-500">Edit Archive Bio</button>
+                <div className="space-y-2">
+                   <label className="text-[8px] uppercase tracking-widest text-zinc-400 font-bold">Change Handle</label>
+                   <div className="flex gap-2">
+                     <input value={newUsername} onChange={e => setNewUsername(e.target.value.toLowerCase())} className="flex-1 border-b border-zinc-900 py-1 text-[12px] font-bold outline-none" />
+                     <button onClick={handleUpdateUsername} disabled={actionLoading} className="text-[9px] font-bold uppercase underline">Update</button>
+                   </div>
+                </div>
+                <button onClick={startEditing} className="w-full text-left text-[11px] uppercase tracking-widest font-bold text-black hover:text-zinc-500">Edit Bio</button>
                 <button onClick={handlePurgeIdentity} className="w-full text-left text-[11px] uppercase tracking-widest font-bold text-red-500 hover:text-red-700">De-index Identity</button>
                 <button onClick={() => setShowSettings(false)} className="w-full text-left text-[10px] uppercase tracking-widest font-bold text-zinc-300 pt-4">Close</button>
              </div>
@@ -158,8 +171,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
 
         <div className="flex flex-col items-center space-y-6">
           <h1 className="text-[32px] uppercase tracking-[0.4em] font-bold text-zinc-900">@{targetProfile.username}</h1>
-          <div className="flex gap-8 items-center border-y border-zinc-50 py-4 px-12 text-[14px] font-bold text-zinc-900">
-            <span>{items.length} UNITS INDEXED</span>
+          
+          {/* ARCHIVE ANALYTICS - RESUME BOOSTER */}
+          <div className="flex gap-12 items-center bg-zinc-50/50 p-6 border border-zinc-50 shadow-inner mt-8">
+            <div className="text-center px-6 border-r border-zinc-100">
+              <span className="text-[8px] uppercase tracking-[0.4em] text-zinc-400 font-bold block mb-1">UNITS</span>
+              <span className="text-[16px] font-bold text-zinc-900">{items.length}</span>
+            </div>
+            <div className="text-center px-6 border-r border-zinc-100">
+              <span className="text-[8px] uppercase tracking-[0.4em] text-zinc-400 font-bold block mb-1">EST. VALUATION</span>
+              <span className="text-[16px] font-bold text-zinc-900">${stats.totalVal.toLocaleString()}</span>
+            </div>
+            <div className="text-center px-6">
+              <span className="text-[8px] uppercase tracking-[0.4em] text-zinc-400 font-bold block mb-1">LIQUIDITY</span>
+              <span className="text-[16px] font-bold text-zinc-900">{Math.round((stats.liquidCount / items.length) * 100 || 0)}%</span>
+            </div>
           </div>
         </div>
 
@@ -168,8 +194,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
             <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4">
               <textarea value={editBio} onChange={e => setEditBio(e.target.value)} placeholder="IDENTITY BIOGRAPHY..." className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 resize-none text-black shadow-inner" />
               <div className="flex gap-6">
-                <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">Commit Changes</button>
-                <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] text-black hover:bg-zinc-50 transition-all">Cancel</button>
+                <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all">Commit</button>
+                <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] text-black hover:bg-zinc-50">Cancel</button>
               </div>
             </div>
           ) : (
@@ -184,11 +210,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
             {isSelf ? (
               <>
                 <button onClick={startEditing} className="text-[11px] uppercase tracking-[0.4em] font-bold border border-zinc-900 px-12 py-5 text-black hover:bg-zinc-900 hover:text-white transition-all">Edit Archive</button>
-                <Link to="/add" className="text-[11px] uppercase tracking-[0.4em] font-bold bg-zinc-900 text-white px-12 py-5 hover:bg-black transition-all shadow-xl">Index New Unit</Link>
+                <Link to="/add" className="text-[11px] uppercase tracking-[0.4em] font-bold bg-zinc-900 text-white px-12 py-5 hover:bg-black transition-all shadow-xl">Index Unit</Link>
               </>
             ) : (
               <>
-                <Link to={`/trade/${targetProfile.username}`} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 text-zinc-900 font-bold px-10 py-5 hover:bg-zinc-50 transition-all">Propose Trade</Link>
+                <Link to={`/trade/${targetProfile.username}`} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 text-zinc-900 font-bold px-10 py-5 hover:bg-zinc-50">Propose Trade</Link>
                 <Link to={`/messages/${targetProfile.id}`} className="text-[11px] uppercase tracking-[0.3em] bg-zinc-900 text-white font-bold px-10 py-5 hover:bg-black transition-all shadow-xl">Send Message</Link>
               </>
             )}
