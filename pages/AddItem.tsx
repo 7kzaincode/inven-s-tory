@@ -32,6 +32,8 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
   const [condition, setCondition] = useState('USED');
   const [price, setPrice] = useState<number>(0);
   const [isPublic, setIsPublic] = useState(true);
+  const [forSale, setForSale] = useState(false);
+  const [forTrade, setForTrade] = useState(false);
 
   useEffect(() => {
     supabase.from('rooms').select('*').eq('owner_id', ownerId).then(({ data }) => {
@@ -110,7 +112,9 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
         category,
         condition,
         public: isPublic,
-        price: price > 0 ? price : null,
+        for_sale: forSale,
+        for_trade: forTrade,
+        price: forSale && price > 0 ? price : null,
         loc_x: locX,
         loc_y: locY,
         loc_note: cleanStrict(locNote, true)
@@ -198,13 +202,14 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
       )}
 
       {step === 'details' && (
-        <div className="space-y-12">
+        <div className="space-y-12 pb-20">
           <h1 className="text-[20px] uppercase tracking-[0.5em] font-bold text-center">ARCHIVAL_REGISTRATION</h1>
           <div className="space-y-12">
             <div className="space-y-2">
                <label className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold">Unit Identifier</label>
                <input value={name} onChange={e => setName(e.target.value)} className="w-full border-b-2 border-zinc-950 py-4 text-[22px] uppercase font-bold outline-none bg-transparent" placeholder="BRAUN_T3_RADIO" />
             </div>
+            
             <div className="grid grid-cols-2 gap-12">
               <div className="space-y-2">
                 <label className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold">Taxonomy</label>
@@ -217,6 +222,38 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
                 <select value={condition} onChange={e => setCondition(e.target.value)} className="w-full bg-transparent border-b border-zinc-200 text-[12px] uppercase font-bold py-3 outline-none">
                   {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
+              </div>
+            </div>
+
+            <div className="space-y-8 pt-8 border-t border-zinc-50">
+              <label className="text-[10px] uppercase tracking-[0.4em] text-zinc-400 font-bold block">Archival Protocol</label>
+              <div className="grid grid-cols-1 gap-6">
+                <label className="flex items-center justify-between group cursor-pointer">
+                  <span className="text-[11px] uppercase tracking-widest font-bold text-zinc-900 group-hover:text-black">Visible to Network</span>
+                  <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="w-5 h-5 accent-zinc-900" />
+                </label>
+                <label className="flex items-center justify-between group cursor-pointer">
+                  <span className="text-[11px] uppercase tracking-widest font-bold text-zinc-900 group-hover:text-black">Open to Trade</span>
+                  <input type="checkbox" checked={forTrade} onChange={e => setForTrade(e.target.checked)} className="w-5 h-5 accent-zinc-900" />
+                </label>
+                <div className="space-y-4">
+                  <label className="flex items-center justify-between group cursor-pointer">
+                    <span className="text-[11px] uppercase tracking-widest font-bold text-zinc-900 group-hover:text-black">Listed for Sale</span>
+                    <input type="checkbox" checked={forSale} onChange={e => setForSale(e.target.checked)} className="w-5 h-5 accent-zinc-900" />
+                  </label>
+                  {forSale && (
+                    <div className="pl-4 border-l-2 border-zinc-900 animate-in slide-in-from-left-2">
+                      <label className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold block mb-2">Valuation (USD)</label>
+                      <input 
+                        type="number" 
+                        value={price} 
+                        onChange={e => setPrice(Number(e.target.value))} 
+                        className="w-full bg-transparent border-b border-zinc-950 py-2 text-[16px] font-bold outline-none" 
+                        placeholder="0.00"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

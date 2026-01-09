@@ -27,6 +27,8 @@ const ItemDetail: React.FC = () => {
   const [editCondition, setEditCondition] = useState('');
   const [editPrice, setEditPrice] = useState<number>(0);
   const [editPublic, setEditPublic] = useState(true);
+  const [editForSale, setEditForSale] = useState(false);
+  const [editForTrade, setEditForTrade] = useState(false);
 
   useEffect(() => {
     if (id) fetchItem();
@@ -54,6 +56,8 @@ const ItemDetail: React.FC = () => {
       setEditCondition(it.condition || 'USED');
       setEditPrice(it.price || 0);
       setEditPublic(it.public);
+      setEditForSale(it.for_sale || false);
+      setEditForTrade(it.for_trade || false);
     }
     setLoading(false);
   };
@@ -64,8 +68,10 @@ const ItemDetail: React.FC = () => {
         name: cleanStrict(editName),
         category: editCategory,
         condition: editCondition,
-        price: editPrice > 0 ? editPrice : null,
-        public: editPublic
+        price: editForSale && editPrice > 0 ? editPrice : null,
+        public: editPublic,
+        for_sale: editForSale,
+        for_trade: editForTrade
       }).eq('id', id);
 
     if (!error) {
@@ -125,7 +131,7 @@ const ItemDetail: React.FC = () => {
 
       <div className="w-full lg:w-1/2 flex flex-col space-y-12 overflow-hidden">
         {isEditing ? (
-          <div className="space-y-10 animate-in fade-in">
+          <div className="space-y-10 animate-in fade-in pb-20">
              <div className="space-y-2">
                 <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Identifier</label>
                 <input maxLength={128} value={editName} onChange={e => setEditName(cleanStrict(e.target.value))} className="w-full border-b border-zinc-900 py-2 text-[18px] uppercase tracking-[0.1em] font-bold outline-none focus:bg-zinc-50 transition-colors" />
@@ -146,9 +152,40 @@ const ItemDetail: React.FC = () => {
                </div>
              </div>
 
-             <div className="flex gap-4 pt-8">
-               <button onClick={handleUpdate} disabled={saving} className="flex-1 py-4 bg-zinc-950 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all shadow-xl">COMMIT_CHANGE</button>
-               <button onClick={() => setIsEditing(false)} className="flex-1 py-4 border border-zinc-300 text-[11px] font-bold uppercase tracking-widest hover:bg-zinc-50 transition-all text-zinc-400">CANCEL</button>
+             <div className="space-y-6 pt-8 border-t border-zinc-100">
+               <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold block">Protocol Adjustment</label>
+               <div className="grid grid-cols-1 gap-4">
+                 <label className="flex items-center justify-between cursor-pointer">
+                   <span className="text-[11px] uppercase tracking-widest font-bold">Visible to Network</span>
+                   <input type="checkbox" checked={editPublic} onChange={e => setEditPublic(e.target.checked)} className="w-5 h-5 accent-zinc-900" />
+                 </label>
+                 <label className="flex items-center justify-between cursor-pointer">
+                   <span className="text-[11px] uppercase tracking-widest font-bold">Open to Trade</span>
+                   <input type="checkbox" checked={editForTrade} onChange={e => setEditForTrade(e.target.checked)} className="w-5 h-5 accent-zinc-900" />
+                 </label>
+                 <div className="space-y-4">
+                   <label className="flex items-center justify-between cursor-pointer">
+                     <span className="text-[11px] uppercase tracking-widest font-bold">Listed for Sale</span>
+                     <input type="checkbox" checked={editForSale} onChange={e => setEditForSale(e.target.checked)} className="w-5 h-5 accent-zinc-900" />
+                   </label>
+                   {editForSale && (
+                     <div className="pl-4 border-l-2 border-zinc-900">
+                        <label className="text-[8px] uppercase tracking-widest text-zinc-400 font-bold block mb-1">Valuation (USD)</label>
+                        <input 
+                          type="number" 
+                          value={editPrice} 
+                          onChange={e => setEditPrice(Number(e.target.value))} 
+                          className="w-full bg-transparent border-b border-zinc-900 py-1 text-[16px] font-bold outline-none" 
+                        />
+                     </div>
+                   )}
+                 </div>
+               </div>
+             </div>
+
+             <div className="flex gap-4 pt-12">
+               <button onClick={handleUpdate} disabled={saving} className="flex-1 py-5 bg-zinc-950 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all shadow-xl">COMMIT_CHANGE</button>
+               <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-300 text-[11px] font-bold uppercase tracking-widest hover:bg-zinc-50 transition-all text-zinc-400">CANCEL</button>
              </div>
           </div>
         ) : (
@@ -172,7 +209,13 @@ const ItemDetail: React.FC = () => {
                   <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-950">ID_{item.id.slice(0, 8).toUpperCase()}</span>
                   
                   <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Market Valuation</span>
-                  <span className="text-[16px] font-bold text-zinc-950">{item.price ? `$${item.price.toLocaleString()}` : 'VAULTED'}</span>
+                  <span className="text-[16px] font-bold text-zinc-950">{item.for_sale && item.price ? `$${item.price.toLocaleString()}` : 'VAULTED'}</span>
+
+                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Protocol Status</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-900">{item.public ? 'VISIBLE' : 'HIDDEN'}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-900">{item.for_trade ? 'TRADEABLE' : 'LOCKED'}</span>
+                  </div>
 
                   {room && (
                     <>
@@ -192,7 +235,12 @@ const ItemDetail: React.FC = () => {
                      <button onClick={() => setShowDeleteModal(true)} className="text-center py-5 border border-red-600 text-red-600 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-red-50 transition-all mt-4">DE-INDEX UNIT</button>
                    </>
                  ) : (
-                   <Link to={`/messages/${item.owner_id}`} className="text-center py-5 border border-zinc-950 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-50 transition-all text-zinc-900">MESSAGE ARCHIVIST</Link>
+                   <div className="flex flex-col gap-4">
+                     <Link to={`/messages/${item.owner_id}`} className="text-center py-5 bg-zinc-950 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">MESSAGE ARCHIVIST</Link>
+                     {item.for_trade && (
+                       <Link to={`/trade/${ownerProfile?.username}`} className="text-center py-5 border border-zinc-950 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-50 transition-all text-zinc-900">PROPOSE TRADE</Link>
+                     )}
+                   </div>
                  )}
                </div>
             </div>

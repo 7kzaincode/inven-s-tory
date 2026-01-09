@@ -55,7 +55,11 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
     if (state?.highlightItemId) {
       setHighlightedItemId(state.highlightItemId);
       setSelectedPinId(state.highlightItemId); 
-      setTimeout(() => setHighlightedItemId(null), 5000); 
+      setTimeout(() => {
+        const el = document.getElementById(`pin-${state.highlightItemId}`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      setTimeout(() => setHighlightedItemId(null), 10000); 
     }
   }, [location]);
 
@@ -145,12 +149,20 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
       Math.pow(e.clientX - dragStartPos.current.x, 2) + 
       Math.pow(e.clientY - dragStartPos.current.y, 2)
     );
+    
     if (editMode === id) {
       await commitPosition(id, isItem);
       setEditMode(null);
     } else {
       clearHoldTimer();
-      if (moveDist < 10) setSelectedPinId(id === selectedPinId ? null : id);
+      if (moveDist < 10) {
+        if (!isItem) {
+          setCurrentRoomId(id);
+          setSelectedPinId(null);
+        } else {
+          setSelectedPinId(id === selectedPinId ? null : id);
+        }
+      }
     }
   };
 
@@ -168,7 +180,7 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
     setModalConfig({
       isOpen: true,
       title: "DE-INDEX UNIT",
-      message: "DE-INDEXING THIS UNIT FROM THE CENTRAL ARCHIVE IS PERMANENT. ALL COORDINATE DATA WILL BE PURGED.",
+      message: "DE-INDEXING THIS UNIT FROM THE CENTRAL ARCHIVE IS PERMANENT.",
       onConfirm: async () => {
         const { error } = await supabase.from('items').delete().eq('id', id);
         if (!error) {
@@ -184,7 +196,7 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
     setModalConfig({
       isOpen: true,
       title: "DECOMMISSION NODE",
-      message: "DECOMMISSIONING THIS SPATIAL NODE WILL ORPHAN ALL NESTED UNITS. THEY WILL REMAIN IN YOUR GLOBAL ARCHIVE BUT LOSE THEIR SPATIAL COORDINATES.",
+      message: "DECOMMISSIONING THIS NODE WILL ORPHAN ALL NESTED UNITS.",
       onConfirm: async () => {
         await supabase.from('items').update({ room_id: null, loc_x: 50, loc_y: 50 }).eq('room_id', id);
         const { error } = await supabase.from('rooms').delete().eq('id', id);
@@ -215,11 +227,12 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
   };
 
   const getPopupStyles = (x: number, y: number) => {
-    let vertical = y > 50 ? 'bottom-full mb-6' : 'top-full mt-6';
-    let horizontal = '';
-    if (x > 80) horizontal = '-translate-x-full ml-4';
-    else if (x < 20) horizontal = 'translate-x-0 -ml-4';
-    else horizontal = '-translate-x-1/2';
+    const vertical = y > 50 ? 'bottom-full mb-4' : 'top-full mt-4';
+    let horizontal = 'left-1/2 -translate-x-1/2';
+    
+    if (x < 30) horizontal = 'left-0 translate-x-0 ml-[-8px]';
+    if (x > 70) horizontal = 'right-0 translate-x-0 mr-[-8px]';
+    
     return `${vertical} ${horizontal}`;
   };
 
@@ -247,7 +260,7 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
       <header className="flex flex-col items-center text-center space-y-12">
         <div className="space-y-4">
           <h1 className="text-[48px] font-bold uppercase tracking-[0.6em] leading-none text-zinc-950">ATLAS</h1>
-          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.5em]">Hold for 0.5s to recalibrate unit coordinates</p>
+          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.5em]">Hold unit to recalibrate coordinates</p>
         </div>
         <nav className="flex gap-4 items-center text-[10px] font-bold uppercase tracking-widest">
            <button onClick={() => setCurrentRoomId(null)} className={`hover:text-black transition-colors ${!currentRoomId ? 'text-black underline underline-offset-8' : 'text-zinc-300'}`}>ROOT</button>
@@ -276,44 +289,36 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
           >
             <img 
               src={currentRoom?.image_url} 
-              className={`w-full block transition-all duration-1000 ${editMode ? 'opacity-30 grayscale blur-sm' : 'opacity-100 grayscale hover:grayscale-0'}`} 
+              className={`w-full block transition-all duration-1000 ${editMode ? 'opacity-30 grayscale blur-sm' : 'opacity-100 grayscale'}`} 
             />
-            {editMode && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]">
-                 <span className="text-white text-[14px] font-bold uppercase tracking-[1em] animate-pulse bg-black/40 px-10 py-4">CALIBRATION_ACTIVE</span>
-              </div>
-            )}
-
+            
             {subRooms.map(room => (
               <div 
                 key={room.id}
+                id={`pin-${room.id}`}
                 style={{ left: `${room.x}%`, top: `${room.y}%` }}
-                className={`absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 z-30 flex items-center justify-center cursor-pointer transition-all ${editMode === room.id ? 'scale-150 z-[200]' : 'hover:scale-110'}`}
+                className={`absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 z-30 flex items-center justify-center cursor-pointer transition-all ${editMode === room.id ? 'scale-125 z-[200]' : 'hover:scale-110'}`}
                 onMouseDown={(e) => handleMouseDown(e, room.id)}
                 onMouseUp={(e) => handleMouseUp(e, room.id, false)}
                 onMouseEnter={() => setHoveredPin(room.id)}
                 onMouseLeave={() => setHoveredPin(null)}
               >
-                <div className={`w-8 h-8 bg-white/20 backdrop-blur-md border border-white rounded-full flex items-center justify-center shadow-2xl transition-all ${selectedPinId === room.id ? 'ring-4 ring-white/50 bg-white/40' : ''}`}>
-                   {holdProgress > 0 && selectedPinId !== room.id && editMode !== room.id && hoveredPin === room.id && (
-                     <div className="absolute inset-0 rounded-full border-2 border-white/80 border-t-transparent animate-spin" />
-                   )}
-                   <div className="w-2 h-2 bg-white rounded-full" />
+                <div className={`w-6 h-6 bg-white/40 backdrop-blur-sm border border-white rounded-full flex items-center justify-center shadow-xl transition-all ${selectedPinId === room.id ? 'ring-4 ring-white/50 bg-white/60' : ''}`}>
+                   <div className="w-1.5 h-1.5 bg-white rounded-full" />
                 </div>
                 {(selectedPinId === room.id || (hoveredPin === room.id && !selectedPinId)) && !editMode && (
-                  <div className={`absolute bg-zinc-950 px-6 py-5 border border-zinc-800 text-white shadow-2xl flex flex-col gap-4 z-[300] ignore-pin-interaction animate-in fade-in slide-in-from-top-2 duration-200 ${getPopupStyles(room.x || 50, room.y || 50)}`}>
-                    <div className="flex justify-between items-center gap-12">
-                      <span className="text-[11px] font-bold uppercase tracking-[0.2em]">{room.name}</span>
+                  <div className={`absolute bg-zinc-950 p-6 border border-zinc-800 text-white shadow-2xl flex flex-col gap-4 z-[300] ignore-pin-interaction animate-in fade-in slide-in-from-top-2 duration-200 min-w-[240px] ${getPopupStyles(room.x || 50, room.y || 50)}`}>
+                    <div className="flex justify-between items-start gap-6">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[14px] font-bold uppercase tracking-widest leading-tight">{room.name}</span>
+                        <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">NODE</span>
+                      </div>
                       <button 
                         onClick={() => handleDecommissionNode(room.id)}
-                        className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center text-[16px] font-bold hover:bg-red-700 transition-all active:scale-90"
+                        className="ignore-pin-interaction w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center text-[20px] font-bold hover:bg-red-700 transition-all shadow-xl"
                       >
                         ×
                       </button>
-                    </div>
-                    <div className="flex gap-4 border-t border-zinc-800 pt-4">
-                      <button onClick={() => setCurrentRoomId(room.id)} className="text-[9px] uppercase tracking-widest font-bold text-white underline underline-offset-8 hover:text-zinc-300 transition-colors">ENTER NODE</button>
-                      <span className="text-[8px] uppercase tracking-widest font-bold text-zinc-600 italic">Hold to move</span>
                     </div>
                   </div>
                 )}
@@ -323,35 +328,39 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
             {roomItems.map(item => (
               <div 
                 key={item.id}
+                id={`pin-${item.id}`}
                 style={{ left: `${item.loc_x}%`, top: `${item.loc_y}%` }}
                 onMouseEnter={() => setHoveredPin(item.id)}
                 onMouseLeave={() => setHoveredPin(null)}
-                className={`absolute w-10 h-10 -translate-x-1/2 -translate-y-1/2 z-40 flex items-center justify-center cursor-crosshair transition-transform ${editMode === item.id ? 'scale-150 z-[200]' : highlightedItemId === item.id ? 'scale-150 z-[200]' : 'hover:scale-125'}`}
+                className={`absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 z-40 flex items-center justify-center cursor-crosshair transition-transform ${editMode === item.id ? 'scale-125 z-[200]' : highlightedItemId === item.id ? 'scale-150 z-[200]' : 'hover:scale-110'}`}
                 onMouseDown={(e) => handleMouseDown(e, item.id)}
                 onMouseUp={(e) => handleMouseUp(e, item.id, true)}
               >
-                <div className={`w-4 h-4 bg-white border-2 border-zinc-950 rounded-full shadow-2xl relative transition-all ${selectedPinId === item.id ? 'ring-8 ring-white/20 scale-125' : ''} ${highlightedItemId === item.id ? 'animate-ping' : 'animate-pulse'}`}>
-                   {holdProgress > 0 && selectedPinId !== item.id && editMode !== item.id && hoveredPin === item.id && (
-                     <div className="absolute -inset-2 rounded-full border border-white/80 border-t-transparent animate-spin" />
+                <div className={`w-4 h-4 bg-white border-2 border-zinc-950 rounded-full shadow-xl relative transition-all ${selectedPinId === item.id ? 'ring-[10px] ring-white/20' : ''} ${highlightedItemId === item.id ? 'animate-ping' : ''}`}>
+                   {holdProgress > 0 && hoveredPin === item.id && (
+                     <div className="absolute -inset-4 rounded-full border-2 border-white/40 border-t-transparent animate-spin" />
                    )}
                 </div>
                 {(selectedPinId === item.id || (hoveredPin === item.id && !selectedPinId)) && !editMode && (
-                  <div className={`absolute bg-zinc-950 px-6 py-5 border border-zinc-800 shadow-2xl whitespace-nowrap z-[300] flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200 ${getPopupStyles(item.loc_x || 50, item.loc_y || 50)}`} onMouseDown={(e) => e.stopPropagation()}>
-                    <div className="flex justify-between items-center gap-12">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white leading-none">{item.name}</span>
-                        <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-bold">{item.loc_note || 'INDEXED'}</span>
+                  <div className={`absolute bg-zinc-950 p-6 border border-zinc-800 text-white shadow-2xl flex flex-col gap-5 z-[300] ignore-pin-interaction animate-in fade-in slide-in-from-top-2 duration-200 min-w-[280px] ${getPopupStyles(item.loc_x || 50, item.loc_y || 50)}`} onMouseDown={(e) => e.stopPropagation()}>
+                    <div className="flex justify-between items-start gap-8">
+                      <div className="flex flex-col gap-2 flex-1">
+                        <span className="text-[16px] font-bold uppercase tracking-widest text-white leading-tight break-words">{item.name}</span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">{item.loc_note || 'INDEXED'}</span>
+                          <span className="text-[8px] text-zinc-600 font-bold uppercase tracking-[0.2em]">{item.category} // {item.condition}</span>
+                        </div>
                       </div>
                       <button 
                         onClick={() => handleDeIndexItem(item.id)}
-                        className="ignore-pin-interaction w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center text-[16px] font-bold hover:bg-red-700 transition-all shadow-xl active:scale-90"
+                        className="ignore-pin-interaction w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center text-[20px] font-bold hover:bg-red-700 transition-all shadow-xl"
                       >
                         ×
                       </button>
                     </div>
-                    <div className="flex justify-between items-center border-t border-zinc-800 pt-4">
-                      <Link to={`/item/${item.id}`} className="ignore-pin-interaction text-[9px] uppercase tracking-widest font-bold text-white underline underline-offset-8 hover:text-zinc-300">DETAILS</Link>
-                      <span className="text-[8px] uppercase tracking-widest font-bold text-zinc-600 italic ml-4">Hold to move</span>
+                    <div className="flex justify-between items-center border-t border-zinc-800 pt-5">
+                      <Link to={`/item/${item.id}`} className="ignore-pin-interaction text-[10px] uppercase tracking-widest font-bold text-white underline underline-offset-8">DETAILS</Link>
+                      <span className="text-[8px] uppercase tracking-widest font-bold text-zinc-600 italic">HOLD_TO_MOVE</span>
                     </div>
                   </div>
                 )}
@@ -359,20 +368,15 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
             ))}
 
             <div className="absolute bottom-6 right-6 flex gap-4">
-              <button 
-                onClick={() => setShowDeployDrawer(true)}
-                className="bg-zinc-950 px-6 py-3 text-[9px] font-bold uppercase tracking-widest text-white hover:bg-black shadow-xl border border-zinc-800"
-              >
-                + DEPLOY UNIT
-              </button>
-              <Link to="/add-room" state={{ parentId: currentRoomId }} className="bg-white px-6 py-3 text-[9px] font-bold uppercase tracking-widest text-black hover:bg-zinc-100 shadow-xl border border-zinc-900">+ NEST NODE</Link>
+              <button onClick={() => setShowDeployDrawer(true)} className="bg-zinc-950 px-6 py-3 text-[9px] font-bold uppercase tracking-widest text-white hover:bg-black border border-zinc-800">+ DEPLOY</button>
+              <Link to="/add-room" state={{ parentId: currentRoomId }} className="bg-white px-6 py-3 text-[9px] font-bold uppercase tracking-widest text-black hover:bg-zinc-100 border border-zinc-900">+ NEST</Link>
             </div>
           </div>
 
-          <div className="w-full pt-24 border-t border-zinc-100">
-             <div className="flex justify-between items-baseline mb-16">
+          <div className="w-full pt-20 border-t border-zinc-100">
+             <div className="flex justify-between items-baseline mb-12 px-4">
                <h2 className="text-[14px] font-bold uppercase tracking-[0.5em] text-zinc-900 px-4 border-l-4 border-zinc-950">UNIT_ARCHIVE // {currentRoom?.name}</h2>
-               <span className="text-[10px] text-zinc-300 font-bold uppercase tracking-widest">{roomItems.length} Registered Units</span>
+               <span className="text-[10px] text-zinc-300 font-bold uppercase tracking-widest">{roomItems.length} UNITS</span>
              </div>
              <InventoryGrid items={roomItems} isOwner={true} />
           </div>
@@ -383,7 +387,7 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
             <div key={room.id} className="group border border-zinc-100 bg-white hover:border-zinc-950 transition-all duration-700 shadow-sm hover:shadow-2xl overflow-hidden flex flex-col relative">
               <button 
                  onClick={(e) => { e.stopPropagation(); handleDecommissionNode(room.id); }}
-                 className="absolute top-4 right-4 z-20 w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center text-[18px] font-bold shadow-xl hover:bg-red-700 active:scale-90 transition-all"
+                 className="absolute top-4 right-4 z-20 w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center text-[20px] font-bold shadow-xl hover:bg-red-700 active:scale-90 transition-all"
               >
                 ×
               </button>
@@ -393,36 +397,35 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
                 </div>
                 <div className="p-10 flex justify-between items-center">
                   <h3 className="text-[18px] font-bold uppercase tracking-[0.4em] text-zinc-900">{room.name}</h3>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 group-hover:text-zinc-900">Enter Node →</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">ENTER →</span>
                 </div>
               </div>
             </div>
           ))}
           <Link to="/add-room" className="aspect-[16/10] border-2 border-dashed border-zinc-100 flex flex-col items-center justify-center gap-4 hover:border-zinc-900 transition-all group bg-zinc-50/20">
-             <span className="text-[32px] text-zinc-200 group-hover:text-zinc-900">+</span>
-             <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-300 group-hover:text-zinc-900">Establish Root Node</span>
+             <span className="text-[32px] text-zinc-200 group-hover:text-zinc-900 font-light">+</span>
+             <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-300 group-hover:text-zinc-900">ESTABLISH_ROOT</span>
           </Link>
         </section>
       )}
 
       {showDeployDrawer && (
-        <div className="fixed inset-0 z-[500] bg-white/95 backdrop-blur-xl animate-in fade-in duration-500 flex flex-col items-center p-20 overflow-y-auto">
-          <header className="w-full max-w-4xl flex justify-between items-center mb-20">
-             <h2 className="text-[20px] font-bold uppercase tracking-[0.6em] text-zinc-900">DEPLOY_UNASSIGNED_UNITS</h2>
-             <button onClick={() => setShowDeployDrawer(false)} className="text-[12px] font-bold uppercase tracking-widest text-zinc-400 hover:text-black transition-colors">[ CLOSE ]</button>
+        <div className="fixed inset-0 z-[500] bg-white/95 backdrop-blur-md flex flex-col items-center p-20 overflow-y-auto">
+          <header className="w-full max-w-4xl flex justify-between items-center mb-16">
+             <h2 className="text-[20px] font-bold uppercase tracking-[0.6em] text-zinc-900">DEPLOY_UNITS</h2>
+             <button onClick={() => setShowDeployDrawer(false)} className="text-[12px] font-bold uppercase tracking-widest text-zinc-400 hover:text-black transition-colors underline decoration-2 underline-offset-8">[ CLOSE ]</button>
           </header>
           <div className="w-full max-w-6xl grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
              {unassignedItems.map(item => (
-               <div key={item.id} onClick={() => deployItemToRoom(item)} className="group aspect-square bg-zinc-50 border border-zinc-100 p-6 flex flex-col items-center justify-center cursor-pointer hover:border-zinc-950 hover:bg-white transition-all shadow-sm hover:shadow-2xl relative overflow-hidden">
-                 <img src={item.image_url} className="w-full h-full object-contain mix-blend-multiply mb-4 group-hover:scale-110 transition-transform duration-700" />
+               <div key={item.id} onClick={() => deployItemToRoom(item)} className="group aspect-square bg-zinc-50 border border-zinc-100 p-6 flex flex-col items-center justify-center cursor-pointer hover:border-zinc-950 hover:bg-white transition-all shadow-sm hover:shadow-xl relative overflow-hidden">
+                 <img src={item.image_url} className="w-full h-full object-contain mix-blend-multiply mb-4" />
                  <div className="absolute inset-0 bg-zinc-950/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white mb-2">{item.name}</span>
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-400">INITIALIZE DEPLOYMENT</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white leading-tight">{item.name}</span>
                  </div>
                </div>
              ))}
              {unassignedItems.length === 0 && (
-               <div className="col-span-full py-20 text-center opacity-30 uppercase tracking-widest text-[12px] font-bold">No unassigned units in global archive.</div>
+               <div className="col-span-full py-20 text-center opacity-30 uppercase tracking-[0.8em] text-[12px] font-bold">NO UNASSIGNED UNITS.</div>
              )}
           </div>
         </div>
