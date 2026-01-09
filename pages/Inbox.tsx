@@ -72,7 +72,7 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
     setViewingTrade({ ...trade, senderItemsData: sItems, receiverItemsData: rItems });
   };
 
-  // REUSABLE HOVER STATS COMPONENT
+  // REUSABLE HOVER STATS OVERLAY FOR THE MODAL
   const ItemStatOverlay = ({ item }: { item: any }) => (
     <div className="absolute inset-0 bg-zinc-950/95 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center p-4 text-center space-y-2 z-20">
       <span className="text-[10px] text-white font-bold uppercase tracking-widest border-b border-zinc-800 pb-2 mb-2 w-full truncate">{item.name}</span>
@@ -116,6 +116,15 @@ const Inbox: React.FC<InboxProps> = ({ profile }) => {
       <div className="w-full space-y-8 min-h-[400px]">
         {activeTab === 'received' && (
           <div className="space-y-4">
+            {friendRequests.map(req => (
+              <div key={req.id} className="p-8 border border-zinc-100 flex justify-between items-center bg-[#FAFAFA] hover:shadow-md transition-shadow">
+                <span className="text-[12px] uppercase tracking-widest font-bold">LINK REQUEST FROM @{req.requester.username}</span>
+                <div className="flex gap-4">
+                  <button onClick={() => supabase.from('friends').update({ status: 'accepted' }).eq('id', req.id).then(() => fetchEverything())} className="text-[10px] uppercase font-bold bg-zinc-900 text-white px-6 py-2 hover:bg-black">Accept</button>
+                  <button onClick={() => declineTrade(req.id)} className="text-[10px] uppercase font-bold text-zinc-400 px-6 py-2 hover:text-zinc-900">Decline</button>
+                </div>
+              </div>
+            ))}
             {tradeRequests.map(trade => (
               <div key={trade.id} className="p-10 border border-zinc-100 flex justify-between items-center bg-white hover:border-zinc-900 transition-all cursor-pointer shadow-sm group" onClick={() => openTradeDetails(trade)}>
                 <span className="text-[14px] uppercase font-bold tracking-widest text-zinc-400 group-hover:text-zinc-900 transition-colors">PROPOSAL FROM @{trade.sender.username}</span>

@@ -24,6 +24,7 @@ const ItemDetail: React.FC = () => {
   const [editPrice, setEditPrice] = useState<number | undefined>(0);
   const [editForSale, setEditForSale] = useState(false);
   const [editForTrade, setEditForTrade] = useState(false);
+  const [editPublic, setEditPublic] = useState(true);
 
   useEffect(() => {
     fetchItem();
@@ -47,6 +48,7 @@ const ItemDetail: React.FC = () => {
       setEditPrice(itemData.price);
       setEditForSale(itemData.for_sale);
       setEditForTrade(itemData.for_trade);
+      setEditPublic(itemData.public);
     }
     setLoading(false);
   };
@@ -59,7 +61,8 @@ const ItemDetail: React.FC = () => {
         condition: editCondition,
         price: editForSale ? editPrice : null,
         for_sale: editForSale,
-        for_trade: editForTrade
+        for_trade: editForTrade,
+        public: editPublic
       }).eq('id', id);
 
     if (!error) {
@@ -81,8 +84,11 @@ const ItemDetail: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row w-full gap-16 lg:gap-32 py-12 animate-in fade-in duration-700">
       <div className="w-full lg:w-1/2">
-        <div className="aspect-square bg-[#FDFDFD] border border-zinc-100 p-12 mb-12 flex items-center justify-center shadow-inner group">
+        <div className="aspect-square bg-[#FDFDFD] border border-zinc-100 p-12 mb-12 flex items-center justify-center shadow-inner group relative">
           <img src={item.image_url} alt={item.name} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-1000" />
+          {isOwner && !item.public && (
+            <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-[8px] font-bold tracking-[0.3em] uppercase">VAULTED (PRIVATE)</div>
+          )}
         </div>
 
         {ownerProfile && (
@@ -94,7 +100,7 @@ const ItemDetail: React.FC = () => {
                 </div>
                 <div className="flex flex-col">
                    <span className="text-[14px] font-bold uppercase tracking-widest text-zinc-900 group-hover:underline leading-none">@{ownerProfile.username}</span>
-                   <span className="text-[9px] uppercase tracking-widest text-zinc-400 mt-1 font-bold">Identity Profile</span>
+                   <span className="text-[9px] uppercase tracking-widest text-zinc-400 mt-1 font-bold">Archive Identity</span>
                 </div>
              </Link>
           </div>
@@ -108,6 +114,18 @@ const ItemDetail: React.FC = () => {
                 <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Archival Name</label>
                 <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full border-b border-zinc-900 py-2 text-[18px] uppercase tracking-[0.1em] font-bold outline-none focus:bg-zinc-50 transition-colors" />
              </div>
+             
+             <div className="space-y-4">
+                <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setEditPublic(!editPublic)}>
+                  <div className={`w-10 h-5 border transition-all relative ${editPublic ? 'bg-zinc-900 border-zinc-900' : 'bg-zinc-100 border-zinc-200'}`}>
+                    <div className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white transition-all ${editPublic ? 'left-6' : 'left-1'}`} />
+                  </div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-900">
+                    {editPublic ? 'INDEXED (PUBLICLY VISIBLE)' : 'VAULTED (PRIVATE / HIDDEN)'}
+                  </label>
+                </div>
+             </div>
+
              <div className="grid grid-cols-2 gap-12">
                <div className="flex flex-col gap-2">
                  <label className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold">Category</label>
@@ -164,13 +182,13 @@ const ItemDetail: React.FC = () => {
                <div className="grid grid-cols-2 gap-y-8">
                   <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Archive Registry</span>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-900">ID_{item.id.slice(0, 8)}</span>
-                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Market Price</span>
+                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Market Value</span>
                   <span className="text-[14px] font-bold text-zinc-900">{item.price ? `$${item.price.toLocaleString()}` : 'VAULTED'}</span>
                </div>
 
                <div className="flex flex-col gap-4 pt-10">
                  {isOwner ? (
-                   <Link to="/my-space" className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">MANAGE ARCHIVE</Link>
+                   <Link to="/my-space" className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">MY ARCHIVE</Link>
                  ) : (
                    <>
                     <Link to={`/trade/${ownerProfile?.username}`} className="text-center py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">PROPOSE TRADE</Link>

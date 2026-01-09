@@ -28,6 +28,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
   const [price, setPrice] = useState<number>(0);
   const [isForSale, setIsForSale] = useState(false);
   const [isForTrade, setIsForTrade] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [complianceAccepted, setComplianceAccepted] = useState(false);
 
   // Bulletin State
@@ -80,7 +81,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
         owner_id: ownerId, 
         name, 
         image_url: publicUrl, 
-        public: true,
+        public: isPublic,
         for_sale: isForSale, 
         for_trade: isForTrade, 
         category, 
@@ -88,7 +89,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
         price: isForSale ? price : null
       }]);
       if (dbError) throw dbError;
-      navigate('/my-space');
+      navigate(`/profile/${ownerId}`);
     } catch (e: any) {
       alert("Archive Failure: " + e.message);
     } finally {
@@ -98,7 +99,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
 
   const handlePostBulletin = async () => {
     if (!bulletinText || !isClean(bulletinText)) {
-      alert("BULLETIN CONTENT INVALID OR EMPTY.");
+      alert("BULLETIN CONTENT INVALID.");
       return;
     }
     setLoading(true);
@@ -169,7 +170,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
                    <img src={it.image_url} className="w-full h-full object-contain" />
                  </div>
                ))}
-               {myTradables.length === 0 && <p className="col-span-4 text-[9px] text-zinc-300 uppercase py-6 text-center font-bold italic">No units listed for trade in your archive.</p>}
+               {myTradables.length === 0 && <p className="col-span-4 text-[9px] text-zinc-300 uppercase py-6 text-center font-bold italic">No tradeable units found.</p>}
              </div>
           </div>
 
@@ -209,7 +210,7 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
             <h2 className="text-[12px] font-bold tracking-[0.3em] uppercase">Compliance Protocol</h2>
             <ul className="space-y-4 text-[11px] font-medium tracking-wide uppercase leading-relaxed text-zinc-400">
               <li>1. Asset must be a clear, physical object.</li>
-              <li>2. No selfies, landscapes, or text screenshots.</li>
+              <li>2. No selfies, text screenshots, or irrelevant media.</li>
               <li>3. Professional standards apply to all archival data.</li>
             </ul>
           </div>
@@ -230,6 +231,16 @@ const AddItem: React.FC<AddItemProps> = ({ ownerId }) => {
           </div>
           <div className="space-y-10">
             <input value={name} onChange={e => setName(e.target.value)} placeholder="UNIT NAME" className="w-full border-b border-zinc-900 py-4 text-[16px] uppercase tracking-widest font-bold outline-none bg-transparent" />
+            
+            <div className="flex items-center gap-6 p-4 bg-zinc-50 border border-zinc-100 cursor-pointer" onClick={() => setIsPublic(!isPublic)}>
+               <div className={`w-10 h-5 border transition-all relative ${isPublic ? 'bg-zinc-900 border-zinc-900' : 'bg-white border-zinc-200'}`}>
+                  <div className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white transition-all ${isPublic ? 'left-6' : 'left-1'}`} />
+               </div>
+               <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-900">
+                 {isPublic ? 'Publicly Indexed' : 'Private Vault Only'}
+               </span>
+            </div>
+
             <div className="grid grid-cols-2 gap-10">
                <div className="flex flex-col gap-2">
                   <label className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold">Category</label>

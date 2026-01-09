@@ -4,8 +4,99 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { Profile, PublicTradeAd, Item } from '../types';
 
+// HARDCODED LEGACY DATA FOR RECRUITERS
+const LEGACY_ARCHIVISTS = [
+  { 
+    id: 'legacy-node-001', 
+    username: 'brutalist_lab', 
+    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop', 
+    count: 12,
+    bio: 'Curating monochrome forms and brutalist archival hardware. Focus on 1970s Braun design and minimalist objects.'
+  },
+  { 
+    id: 'legacy-node-002', 
+    username: 'vintage_optics', 
+    avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=200&auto=format&fit=crop', 
+    count: 8,
+    bio: 'Specialist in 90s tech, archival optics, and rare media repositories.'
+  },
+  { 
+    id: 'legacy-node-003', 
+    username: 'hardware_vault', 
+    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop', 
+    count: 24,
+    bio: 'Mapping the intersection of physical utility and identity through high-performance objects.'
+  },
+  { 
+    id: 'legacy-node-004', 
+    username: 'studio_index', 
+    avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&auto=format&fit=crop', 
+    count: 15,
+    bio: 'Typography, brutalist print media, and rare book curation. The history of the printed word as object.'
+  },
+  { 
+    id: 'legacy-node-005', 
+    username: 'analog_archive', 
+    avatar_url: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?q=80&w=200&auto=format&fit=crop', 
+    count: 31,
+    bio: 'Magnetic media specialist. 35mm film, modular synthesis, and the preservation of analog decay.'
+  },
+  { 
+    id: 'legacy-node-006', 
+    username: 'tech_decay', 
+    avatar_url: 'https://images.unsplash.com/photo-1552058544-f2b08422138a?q=80&w=200&auto=format&fit=crop', 
+    count: 19,
+    bio: 'Translucent plastics and early 2000s computing. Documenting the aesthetic of the early internet age.'
+  }
+];
+
+const LEGACY_BULLETINS = [
+  {
+    id: 'lb-1',
+    owner_id: 'legacy-node-001',
+    text: "Looking for archival hardware units from the Rams era. Open to trading monochrome objects.",
+    looking_for: "HARDWARE, MEDIA",
+    created_at: new Date().toISOString(),
+    owner: LEGACY_ARCHIVISTS[0],
+    items: [
+      { id: 'li-1', name: 'UNIT_ALPHA', image_url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=400&auto=format&fit=crop', category: 'OBJECT' }
+    ]
+  },
+  {
+    id: 'lb-2',
+    owner_id: 'legacy-node-002',
+    text: "De-indexing my collection of vintage optics. Preference for hard-currency or high-tier apparel.",
+    looking_for: "APPAREL, OBJECT",
+    created_at: new Date().toISOString(),
+    owner: LEGACY_ARCHIVISTS[1],
+    items: [
+      { id: 'li-2', name: 'OPTIC_V3', image_url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop', category: 'HARDWARE' }
+    ]
+  },
+  {
+    id: 'lb-3',
+    owner_id: 'legacy-node-004',
+    text: "LF: First edition design journals. Have rare brutalist zines for trade.",
+    looking_for: "MEDIA, OBJECT",
+    created_at: new Date().toISOString(),
+    owner: LEGACY_ARCHIVISTS[3],
+    items: []
+  },
+  {
+    id: 'lb-4',
+    owner_id: 'legacy-node-006',
+    text: "Seeking working iMac G3 units (Bondi Blue). Trading early Y2K hardware.",
+    looking_for: "HARDWARE",
+    created_at: new Date().toISOString(),
+    owner: LEGACY_ARCHIVISTS[5],
+    items: [
+       { id: 'li-3', name: 'TRANSLUCENT_NODE', image_url: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?q=80&w=400&auto=format&fit=crop', category: 'HARDWARE' }
+    ]
+  }
+];
+
 interface TradeAdWithItems extends PublicTradeAd {
-  items: Item[];
+  items: any[];
 }
 
 const Explore: React.FC = () => {
@@ -13,7 +104,7 @@ const Explore: React.FC = () => {
   const [tradeAds, setTradeAds] = useState<TradeAdWithItems[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [seeding, setSeeding] = useState(false);
+  const [showSample, setShowSample] = useState(true); 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -27,7 +118,7 @@ const Explore: React.FC = () => {
 
   const showNotify = (msg: string) => {
     setNotification(msg);
-    setTimeout(() => setNotification(null), 4000);
+    setTimeout(() => setNotification(null), 3000);
   };
 
   const fetchArchives = async (query: string = searchQuery) => {
@@ -40,8 +131,9 @@ const Explore: React.FC = () => {
       if (query) pQuery = pQuery.ilike('username', `%${query}%`);
       
       const { data: profiles } = await pQuery.limit(50);
+      let results: any[] = [];
+      
       if (profiles) {
-        const results = [];
         for (const p of profiles) {
           if (p.id === myId) continue;
           const { count } = await supabase.from('items')
@@ -49,8 +141,9 @@ const Explore: React.FC = () => {
             .eq('owner_id', p.id).eq('public', true);
           results.push({ ...p, count: count || 0 });
         }
-        setArchives(query ? results : results.filter(r => r.count > 0));
       }
+
+      setArchives(results);
     } finally {
       setLoading(false);
     }
@@ -79,31 +172,18 @@ const Explore: React.FC = () => {
     }
   };
 
-  // RESUME FEATURE: Real Data Seeding (Simulation)
-  const handleSimulateNetwork = async () => {
-    setSeeding(true);
-    try {
-      // 1. Create a demo user profile manually if needed (Simplified for demo)
-      // Note: In a real app we'd need auth.signup, so we simulate by inserting profiles 
-      // with known static IDs or just showing the process for the recruiter.
-      
-      showNotify("INITIALIZING ARCHIVE NODES...");
-      
-      // Since we can't easily create AUTH users here, we simulate by adding
-      // a public global "Grail" set if the DB is empty.
-      // If the user is the only one, we encourage them to invite others or
-      // we could show 'Guest' data.
-      
-      await new Promise(r => setTimeout(r, 1500));
-      showNotify("NETWORK SYNC SUCCESSFUL.");
-      fetchArchives();
-      fetchTradeAds();
-    } catch (e) {
-      showNotify("SYNC FAILURE.");
-    } finally {
-      setSeeding(false);
-    }
+  const toggleSample = () => {
+    setShowSample(!showSample);
+    showNotify(showSample ? "LEGACY NODES DISCONNECTED" : "LEGACY NODES INITIALIZED");
   };
+
+  const displayedArchives = showSample 
+    ? [...LEGACY_ARCHIVISTS, ...archives.filter(a => !LEGACY_ARCHIVISTS.some(l => l.id === a.id))]
+    : archives;
+
+  const displayedBulletins = showSample 
+    ? [...LEGACY_BULLETINS, ...tradeAds]
+    : tradeAds;
 
   return (
     <div className="w-full flex flex-col items-center space-y-24 animate-in fade-in duration-1000 relative">
@@ -125,18 +205,23 @@ const Explore: React.FC = () => {
           />
           <button onClick={() => fetchArchives()} className="absolute right-8 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900">Search</button>
         </div>
-        {!loading && archives.length < 2 && (
-          <button onClick={handleSimulateNetwork} disabled={seeding} className="text-[9px] uppercase tracking-widest font-bold text-zinc-400 hover:text-zinc-950 transition-colors border-b border-zinc-100 pb-1">
-            {seeding ? 'SYNCHRONIZING...' : 'POPULATE DEMO NETWORK'}
-          </button>
-        )}
+        
+        <button 
+          onClick={toggleSample}
+          className={`text-[9px] uppercase tracking-[0.4em] font-bold transition-all border-b pb-1 ${showSample ? 'text-zinc-900 border-zinc-900' : 'text-zinc-300 border-zinc-100 hover:text-zinc-500'}`}
+        >
+          {showSample ? 'DISCONNECT LEGACY NODES' : 'INITIALIZE LEGACY NETWORK'}
+        </button>
       </header>
 
       <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-16">
         <section className="lg:col-span-8 space-y-12">
-          <h3 className="text-[11px] uppercase tracking-[0.3em] font-bold text-zinc-400 border-b border-zinc-50 pb-4">ARCHIVISTS</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {archives.map(a => (
+          <div className="flex justify-between items-baseline border-b border-zinc-50 pb-4">
+            <h3 className="text-[11px] uppercase tracking-[0.3em] font-bold text-zinc-400">ARCHIVISTS</h3>
+            {currentUserId && <Link to="/friends" className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-black transition-colors">Established Links</Link>}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {displayedArchives.map(a => (
               <Link key={a.id} to={`/profile/${a.username}`} className="p-10 border border-zinc-100 hover:border-zinc-900 transition-all flex flex-col items-center group bg-white shadow-sm hover:shadow-xl relative overflow-hidden">
                 <div className="w-24 h-24 bg-zinc-50 rounded-full mb-8 flex items-center justify-center border border-zinc-100 overflow-hidden shadow-inner relative z-10">
                   {a.avatar_url ? (
@@ -147,11 +232,11 @@ const Explore: React.FC = () => {
                 </div>
                 <h3 className="text-[14px] uppercase tracking-[0.25em] font-bold text-zinc-900 relative z-10">@{a.username}</h3>
                 <p className="text-[10px] text-zinc-500 uppercase mt-3 tracking-[0.2em] font-bold relative z-10">{a.count} ARCHIVAL UNITS</p>
-                <div className="absolute top-0 right-0 p-4 text-[8px] font-bold text-zinc-100 tracking-tighter select-none">NODE_{a.id.slice(0,4)}</div>
+                <div className="absolute top-0 right-0 p-4 text-[8px] font-bold text-zinc-100 tracking-tighter select-none uppercase">
+                  {a.id.startsWith('legacy') ? 'LEGACY_NODE' : `NODE_${a.id.slice(0,4)}`}
+                </div>
               </Link>
             ))}
-            {loading && archives.length === 0 && <div className="col-span-full text-center py-20 text-[11px] uppercase tracking-widest text-zinc-400 font-bold animate-pulse">Scanning Grid...</div>}
-            {!loading && archives.length === 0 && <div className="col-span-full text-center py-20 text-[11px] uppercase tracking-widest text-zinc-300 font-bold italic">No external nodes detected. Use "Populate Demo" to seed data.</div>}
           </div>
         </section>
 
@@ -161,10 +246,13 @@ const Explore: React.FC = () => {
             <Link to="/add" className="text-[9px] font-bold uppercase tracking-widest text-zinc-900 underline">Post New</Link>
           </div>
           <div className="space-y-10">
-            {tradeAds.map(ad => (
+            {displayedBulletins.map((ad: any) => (
               <div key={ad.id} className="bg-white border border-zinc-100 p-8 shadow-sm hover:shadow-md transition-shadow group relative">
                 {ad.owner_id === currentUserId && (
                   <div className="absolute top-0 left-0 bg-zinc-950 text-white text-[7px] px-2 py-1 font-bold tracking-widest">MY BULLETIN</div>
+                )}
+                {ad.owner_id.startsWith('legacy') && (
+                  <div className="absolute top-0 left-0 bg-zinc-100 text-zinc-400 text-[7px] px-2 py-1 font-bold tracking-widest uppercase">Legacy Node</div>
                 )}
                 <div className="flex justify-between items-center mb-6">
                   <Link to={`/profile/${ad.owner?.username}`} className="text-[11px] font-bold uppercase tracking-widest text-zinc-900 hover:underline">@{ad.owner?.username}</Link>
@@ -174,15 +262,12 @@ const Explore: React.FC = () => {
                 
                 {ad.items && ad.items.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-8">
-                    {ad.items.map(it => (
+                    {ad.items.map((it: any) => (
                       <div key={it.id} className="aspect-square bg-white border border-zinc-50 relative group/item">
                         <img src={it.image_url} className="w-full h-full object-contain mix-blend-multiply" />
                         <div className="absolute inset-0 bg-black/80 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center justify-center p-1">
                            <span className="text-[7px] text-white font-bold uppercase tracking-tighter text-center">{it.name}</span>
                         </div>
-                        {it.owner_id === currentUserId && (
-                          <div className="absolute top-0 right-0 bg-zinc-950 text-white text-[6px] px-1 font-bold">YOUR UNIT</div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -190,11 +275,14 @@ const Explore: React.FC = () => {
 
                 <div className="flex justify-between items-center pt-6 border-t border-zinc-50">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">LF: {ad.looking_for || 'Inquiry'}</span>
-                  {ad.owner_id !== currentUserId && (
+                  {ad.owner_id !== currentUserId && !ad.owner_id.startsWith('legacy') && (
                     <div className="flex gap-4">
                       <Link to={`/messages/${ad.owner_id}`} className="text-[10px] font-bold uppercase tracking-widest text-zinc-900 underline underline-offset-4">Message</Link>
                       <Link to={`/trade/${ad.owner?.username}`} className="text-[10px] font-bold uppercase tracking-widest text-zinc-900 border border-zinc-900 px-4 py-1.5 hover:bg-zinc-900 hover:text-white transition-all">Offer</Link>
                     </div>
+                  )}
+                  {ad.owner_id.startsWith('legacy') && (
+                    <span className="text-[8px] uppercase tracking-widest text-zinc-300 font-bold italic">Simulation Node</span>
                   )}
                 </div>
               </div>
