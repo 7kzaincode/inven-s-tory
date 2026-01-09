@@ -10,6 +10,7 @@ export interface Profile {
   created_at: string;
 }
 
+// Added zone property to resolve 'Property zone does not exist on type Item' errors in HouseMap.tsx
 export interface Item {
   id: string;
   owner_id: string;
@@ -21,7 +22,7 @@ export interface Item {
   price?: number;
   category?: string;
   condition?: string;
-  // Added zone property to support location-based physical mapping
+  // Represents the physical location node within the archival space
   zone?: string;
   created_at: string;
 }
