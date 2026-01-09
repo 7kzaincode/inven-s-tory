@@ -73,6 +73,13 @@ const ItemDetail: React.FC = () => {
     setSaving(false);
   };
 
+  const handleLocate = () => {
+    if (item?.room_id) {
+      // Direct spatial trace navigation
+      navigate('/atlas', { state: { roomId: item.room_id, highlightItemId: item.id } });
+    }
+  };
+
   const handleDelete = async () => {
     if (!window.confirm("DE-INDEX THIS UNIT FROM THE CENTRAL ARCHIVE? THIS ACTION IS PERMANENT.")) return;
     try {
@@ -105,25 +112,6 @@ const ItemDetail: React.FC = () => {
             <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-[8px] font-bold tracking-[0.3em] uppercase">PRIVATE_UNIT</div>
           )}
         </div>
-
-        {room && (
-          <div className="space-y-6">
-            <h3 className="text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-400">SPATIAL TRACE: {room.name}</h3>
-            <div className="relative aspect-video bg-zinc-50 border border-zinc-100 overflow-hidden shadow-sm group">
-               <img src={room.image_url} className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" />
-               {item.loc_x !== undefined && item.loc_y !== undefined && (
-                 <div 
-                   style={{ left: `${item.loc_x}%`, top: `${item.loc_y}%` }}
-                   className="absolute w-5 h-5 -translate-x-1/2 -translate-y-1/2 bg-zinc-950 border-2 border-white rounded-full shadow-2xl animate-pulse"
-                 />
-               )}
-            </div>
-            {item.loc_note && (
-              <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-900 border-l-2 border-zinc-900 pl-4 italic">{item.loc_note}</p>
-            )}
-            <Link to="/atlas" className="text-[8px] font-bold uppercase tracking-widest text-zinc-400 hover:text-black transition-colors block underline underline-offset-8">Open Spatial Node in Atlas</Link>
-          </div>
-        )}
       </div>
 
       <div className="w-full lg:w-1/2 flex flex-col space-y-12 overflow-hidden">
@@ -176,12 +164,22 @@ const ItemDetail: React.FC = () => {
                   
                   <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Market Valuation</span>
                   <span className="text-[16px] font-bold text-zinc-950">{item.price ? `$${item.price.toLocaleString()}` : 'VAULTED'}</span>
+
+                  {room && (
+                    <>
+                      <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Spatial Position</span>
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-900">{room.name} {item.loc_note ? `// ${item.loc_note}` : ''}</span>
+                    </>
+                  )}
                </div>
 
                <div className="flex flex-col gap-4 pt-10">
                  {isOwner ? (
                    <>
-                     <Link to={`/profile/${ownerProfile?.username}`} className="text-center py-5 bg-zinc-950 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">RETURN_TO_ARCHIVE</Link>
+                     {item.room_id && (
+                       <button onClick={handleLocate} className="text-center py-5 bg-zinc-950 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">LOCATE IN ATLAS</button>
+                     )}
+                     <Link to={`/profile/${ownerProfile?.username}`} className="text-center py-5 border border-zinc-900 text-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-zinc-50 transition-all">RETURN_TO_ARCHIVE</Link>
                      <button onClick={handleDelete} className="text-center py-5 border border-red-600 text-red-600 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-red-50 transition-all mt-4">DE-INDEX UNIT</button>
                    </>
                  ) : (

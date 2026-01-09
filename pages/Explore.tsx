@@ -19,34 +19,6 @@ const LEGACY_ARCHIVISTS = [
     avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=200&auto=format&fit=crop', 
     count: 8,
     bio: 'Specialist in 90s tech, archival optics, and rare media repositories.'
-  },
-  { 
-    id: 'legacy-node-003', 
-    username: 'hardware_vault', 
-    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop', 
-    count: 24,
-    bio: 'Mapping the intersection of physical utility and identity through high-performance objects.'
-  },
-  { 
-    id: 'legacy-node-004', 
-    username: 'studio_index', 
-    avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&auto=format&fit=crop', 
-    count: 15,
-    bio: 'Typography, brutalist print media, and rare book curation. The history of the printed word as object.'
-  },
-  { 
-    id: 'legacy-node-005', 
-    username: 'analog_archive', 
-    avatar_url: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?q=80&w=200&auto=format&fit=crop', 
-    count: 31,
-    bio: 'Magnetic media specialist. 35mm film, modular synthesis, and the preservation of analog decay.'
-  },
-  { 
-    id: 'legacy-node-006', 
-    username: 'tech_decay', 
-    avatar_url: 'https://images.unsplash.com/photo-1552058544-f2b08422138a?q=80&w=200&auto=format&fit=crop', 
-    count: 19,
-    bio: 'Translucent plastics and early 2000s computing. Documenting the aesthetic of the early internet age.'
   }
 ];
 
@@ -71,26 +43,6 @@ const LEGACY_BULLETINS = [
     owner: LEGACY_ARCHIVISTS[1],
     items: [
       { id: 'li-2', name: 'OPTIC_V3', image_url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop', category: 'HARDWARE', condition: 'VNDS' }
-    ]
-  },
-  {
-    id: 'lb-3',
-    owner_id: 'legacy-node-004',
-    text: "LF: First edition design journals. Have rare brutalist zines for trade.",
-    looking_for: "MEDIA, OBJECT",
-    created_at: new Date().toISOString(),
-    owner: LEGACY_ARCHIVISTS[3],
-    items: []
-  },
-  {
-    id: 'lb-4',
-    owner_id: 'legacy-node-006',
-    text: "Seeking working iMac G3 units (Bondi Blue). Trading early Y2K hardware.",
-    looking_for: "HARDWARE",
-    created_at: new Date().toISOString(),
-    owner: LEGACY_ARCHIVISTS[5],
-    items: [
-       { id: 'li-3', name: 'TRANSLUCENT_NODE', image_url: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?q=80&w=400&auto=format&fit=crop', category: 'HARDWARE', condition: 'USED' }
     ]
   }
 ];

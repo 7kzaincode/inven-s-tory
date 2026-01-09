@@ -1,33 +1,69 @@
 
 import React, { useEffect, useState, useRef } from 'react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { Item, Room } from '../types';
 import InventoryGrid from '../components/InventoryGrid';
-import { Link } from 'react-router-dom';
 
 interface AtlasProps {
   ownerId: string;
 }
 
 const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [unassignedItems, setUnassignedItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
+  
+  // Interaction State
   const [editMode, setEditMode] = useState<string | null>(null); 
+  const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
   const [hoveredPin, setHoveredPin] = useState<string | null>(null);
+  const [holdProgress, setHoldProgress] = useState(0); 
+  
+  const [showDeployDrawer, setShowDeployDrawer] = useState(false);
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+  
+  // Refs
+  const holdTimerRef = useRef<number | null>(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchArchive();
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.user.id !== ownerId) {
+        navigate('/'); // Strict privacy
+        return;
+      }
+      fetchArchive();
+    };
+    checkAuth();
   }, [ownerId]);
+
+  useEffect(() => {
+    const state = location.state as { roomId?: string; highlightItemId?: string };
+    if (state?.roomId) setCurrentRoomId(state.roomId);
+    if (state?.highlightItemId) {
+      setHighlightedItemId(state.highlightItemId);
+      setSelectedPinId(state.highlightItemId); 
+      setTimeout(() => setHighlightedItemId(null), 5000); 
+    }
+  }, [location]);
 
   const fetchArchive = async () => {
     setLoading(true);
     const { data: rData } = await supabase.from('rooms').select('*').eq('owner_id', ownerId);
     const { data: iData } = await supabase.from('items').select('*').eq('owner_id', ownerId);
     if (rData) setRooms(rData as Room[]);
-    if (iData) setItems(iData as Item[]);
+    if (iData) {
+      const allItems = iData as Item[];
+      setItems(allItems);
+      setUnassignedItems(allItems.filter(i => !i.room_id));
+    }
     setLoading(false);
   };
 
@@ -42,51 +78,130 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
     temp = rooms.find(r => r.id === temp?.parent_id);
   }
 
+  // --- INTERACTION LOGIC ---
+
+  const startHoldTimer = (id: string) => {
+    if (holdTimerRef.current) window.clearTimeout(holdTimerRef.current);
+    
+    setHoldProgress(0);
+    const startTime = Date.now();
+    const duration = 500; // REDUCED TO 0.5s as requested
+
+    const tick = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / duration) * 100, 100);
+      setHoldProgress(progress);
+      
+      if (elapsed < duration) {
+        holdTimerRef.current = window.requestAnimationFrame(tick);
+      } else {
+        setEditMode(id);
+        setHoldProgress(0);
+        if (window.navigator.vibrate) window.navigator.vibrate(50);
+      }
+    };
+
+    holdTimerRef.current = window.requestAnimationFrame(tick);
+  };
+
+  const clearHoldTimer = () => {
+    if (holdTimerRef.current) {
+      window.cancelAnimationFrame(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    setHoldProgress(0);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent, id: string) => {
+    // If clicking an action button (Details, X, etc), ignore hold logic
+    if ((e.target as HTMLElement).closest('.ignore-pin-interaction')) return;
+
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    startHoldTimer(id);
+  };
+
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!editMode || !mapRef.current) return;
-    const rect = mapRef.current.getBoundingClientRect();
-    const x = Math.min(Math.max(0, ((e.clientX - rect.left) / rect.width) * 100), 100);
-    const y = Math.min(Math.max(0, ((e.clientY - rect.top) / rect.height) * 100), 100);
+    const moveDist = Math.sqrt(
+      Math.pow(e.clientX - dragStartPos.current.x, 2) + 
+      Math.pow(e.clientY - dragStartPos.current.y, 2)
+    );
 
-    const isEditingItem = items.some(i => i.id === editMode);
+    if (!editMode && moveDist > 10) {
+      clearHoldTimer();
+    }
 
-    if (isEditingItem) {
-      setItems((prev: Item[]) => prev.map(item => 
-        item.id === editMode ? { ...item, loc_x: x, loc_y: y } : item
-      ));
+    if (editMode && mapRef.current) {
+      const rect = mapRef.current.getBoundingClientRect();
+      const x = Math.min(Math.max(0, ((e.clientX - rect.left) / rect.width) * 100), 100);
+      const y = Math.min(Math.max(0, ((e.clientY - rect.top) / rect.height) * 100), 100);
+
+      const isItem = items.some(i => i.id === editMode);
+      if (isItem) {
+        setItems(prev => prev.map(item => item.id === editMode ? { ...item, loc_x: x, loc_y: y } : item));
+      } else {
+        setRooms(prev => prev.map(room => room.id === editMode ? { ...room, x: x, y: y } : room));
+      }
+    }
+  };
+
+  const handleMouseUp = async (e: React.MouseEvent, id: string, isItem: boolean) => {
+    if ((e.target as HTMLElement).closest('.ignore-pin-interaction')) {
+      clearHoldTimer();
+      return;
+    }
+
+    const moveDist = Math.sqrt(
+      Math.pow(e.clientX - dragStartPos.current.x, 2) + 
+      Math.pow(e.clientY - dragStartPos.current.y, 2)
+    );
+
+    if (editMode === id) {
+      await commitPosition(id, isItem);
+      setEditMode(null);
     } else {
-      setRooms((prev: Room[]) => prev.map(room => 
-        room.id === editMode ? { ...room, x: x, y: y } : room
-      ));
+      clearHoldTimer();
+      if (moveDist < 10) {
+        setSelectedPinId(id === selectedPinId ? null : id);
+      }
     }
   };
 
   const commitPosition = async (id: string, isItem: boolean) => {
-    if (!editMode) return;
     const target = isItem ? items.find(i => i.id === id) : rooms.find(r => r.id === id);
     if (!target) return;
-    
-    setEditMode(null);
     const table = isItem ? 'items' : 'rooms';
     const coords = isItem 
       ? { loc_x: (target as Item).loc_x, loc_y: (target as Item).loc_y } 
       : { x: (target as Room).x, y: (target as Room).y };
-
     await supabase.from(table).update(coords).eq('id', id);
   };
 
   const deIndexItem = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
-    e.stopPropagation(); // CRITICAL: Prevent parent onMouseDown from setting editMode
-    
-    if (!window.confirm("DE-INDEX THIS UNIT FROM THE CENTRAL ARCHIVE? THIS ACTION IS PERMANENT.")) return;
+    e.stopPropagation();
+    if (!window.confirm("DE-INDEX THIS UNIT FROM THE CENTRAL ARCHIVE?")) return;
     
     const { error } = await supabase.from('items').delete().eq('id', id);
     if (!error) {
       setItems(prev => prev.filter(i => i.id !== id));
+      setSelectedPinId(null);
       setHoveredPin(null);
-    } else {
-      alert("DE-INDEX FAILURE: " + error.message);
+    }
+  };
+
+  const deployItemToRoom = async (item: Item) => {
+    if (!currentRoomId) return;
+    const { error } = await supabase.from('items').update({
+      room_id: currentRoomId,
+      loc_x: 50,
+      loc_y: 50
+    }).eq('id', item.id);
+
+    if (!error) {
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, room_id: currentRoomId, loc_x: 50, loc_y: 50 } : i));
+      setUnassignedItems(prev => prev.filter(i => i.id !== item.id));
+      setShowDeployDrawer(false);
+      setSelectedPinId(item.id);
     }
   };
 
@@ -100,11 +215,11 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
   );
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-20 py-10 animate-in fade-in duration-1000">
+    <div className="w-full max-w-[1600px] mx-auto space-y-20 py-10 animate-in fade-in duration-1000 relative">
       <header className="flex flex-col items-center text-center space-y-12">
         <div className="space-y-4">
           <h1 className="text-[48px] font-bold uppercase tracking-[0.6em] leading-none text-zinc-950">ATLAS</h1>
-          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.5em]">Physical Coordinate Multi-layer Archive</p>
+          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.5em]">Hold for 0.5s to recalibrate unit coordinates</p>
         </div>
 
         <nav className="flex gap-4 items-center text-[10px] font-bold uppercase tracking-widest">
@@ -123,30 +238,52 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
           <div 
             ref={mapRef}
             onMouseMove={handleMouseMove}
-            onMouseLeave={() => setEditMode(null)}
+            onMouseUp={() => { if (!editMode) clearHoldTimer(); }}
+            onMouseDown={(e) => { 
+              if (e.target === mapRef.current || (e.target as HTMLElement).tagName === 'IMG') {
+                setSelectedPinId(null);
+                setEditMode(null);
+              }
+            }}
             className="relative aspect-[16/8] w-full bg-zinc-950 border border-zinc-950 overflow-hidden shadow-2xl rounded-sm group select-none"
           >
             <img 
               src={currentRoom?.image_url} 
-              className={`w-full h-full object-cover transition-all duration-1000 ${editMode ? 'opacity-40 grayscale blur-sm' : 'opacity-70 grayscale hover:grayscale-0 hover:opacity-100'}`} 
+              className={`w-full h-full object-cover transition-all duration-1000 ${editMode ? 'opacity-30 grayscale blur-sm' : 'opacity-70 grayscale hover:grayscale-0 hover:opacity-100'}`} 
             />
             
+            {editMode && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1000]">
+                 <span className="text-white text-[14px] font-bold uppercase tracking-[1em] animate-pulse">CALIBRATION_ACTIVE</span>
+              </div>
+            )}
+
             {/* SUB-ROOM PINS */}
             {subRooms.map(room => (
               <div 
                 key={room.id}
                 style={{ left: `${room.x}%`, top: `${room.y}%` }}
-                className={`absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 group/pin z-30 flex items-center justify-center cursor-pointer transition-transform ${editMode === room.id ? 'scale-150 z-50' : 'hover:scale-110'}`}
-                onMouseDown={() => setEditMode(room.id)}
-                onMouseUp={() => commitPosition(room.id, false)}
-                onClick={() => !editMode && setCurrentRoomId(room.id)}
+                className={`absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 z-30 flex items-center justify-center cursor-pointer transition-all ${editMode === room.id ? 'scale-150 z-[200]' : 'hover:scale-110'}`}
+                onMouseDown={(e) => handleMouseDown(e, room.id)}
+                onMouseUp={(e) => handleMouseUp(e, room.id, false)}
+                onMouseEnter={() => setHoveredPin(room.id)}
+                onMouseLeave={() => setHoveredPin(null)}
               >
-                <div className="w-8 h-8 bg-white/20 backdrop-blur-md border border-white rounded-full flex items-center justify-center shadow-2xl">
+                <div className={`w-8 h-8 bg-white/20 backdrop-blur-md border border-white rounded-full flex items-center justify-center shadow-2xl transition-all ${selectedPinId === room.id ? 'ring-4 ring-white/50 bg-white/40' : ''}`}>
+                   {holdProgress > 0 && selectedPinId !== room.id && editMode !== room.id && hoveredPin === room.id && (
+                     <div className="absolute inset-0 rounded-full border-2 border-white/80 border-t-transparent animate-spin" />
+                   )}
                    <div className="w-2 h-2 bg-white rounded-full" />
                 </div>
-                <div className="absolute top-14 bg-zinc-950 px-4 py-2 border border-zinc-800 text-white text-[9px] font-bold uppercase tracking-widest opacity-0 group-hover/pin:opacity-100 transition-opacity whitespace-nowrap">
-                   ENTER: {room.name}
-                </div>
+                
+                {(selectedPinId === room.id || (hoveredPin === room.id && !selectedPinId)) && !editMode && (
+                  <div className="absolute top-14 bg-zinc-950 px-6 py-4 border border-zinc-800 text-white shadow-2xl flex flex-col gap-2 z-[300] ignore-pin-interaction animate-in fade-in slide-in-from-top-2 duration-200">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.2em]">{room.name}</span>
+                    <div className="flex gap-4 border-t border-zinc-800 pt-3">
+                      <button onClick={() => setCurrentRoomId(room.id)} className="text-[9px] uppercase tracking-widest font-bold text-white underline underline-offset-4 hover:text-zinc-300">ENTER NODE</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
 
@@ -157,47 +294,61 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
                 style={{ left: `${item.loc_x}%`, top: `${item.loc_y}%` }}
                 onMouseEnter={() => setHoveredPin(item.id)}
                 onMouseLeave={() => setHoveredPin(null)}
-                className={`absolute w-10 h-10 -translate-x-1/2 -translate-y-1/2 group/pin z-20 flex items-center justify-center cursor-crosshair transition-transform ${editMode === item.id ? 'scale-150 z-50' : 'hover:scale-125'}`}
-                onMouseDown={() => !editMode && setEditMode(item.id)}
-                onMouseUp={() => commitPosition(item.id, true)}
+                className={`absolute w-10 h-10 -translate-x-1/2 -translate-y-1/2 z-40 flex items-center justify-center cursor-crosshair transition-transform ${editMode === item.id ? 'scale-150 z-[200]' : highlightedItemId === item.id ? 'scale-150 z-[200]' : 'hover:scale-125'}`}
+                onMouseDown={(e) => handleMouseDown(e, item.id)}
+                onMouseUp={(e) => handleMouseUp(e, item.id, true)}
               >
-                <div className="w-4 h-4 bg-white border-2 border-zinc-950 rounded-full shadow-2xl animate-pulse relative">
-                   {hoveredPin === item.id && !editMode && (
-                     <button 
-                       onMouseDown={(e) => e.stopPropagation()} 
-                       onClick={(e) => deIndexItem(e, item.id)}
-                       className="absolute -top-6 -right-6 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-xl hover:bg-red-700 hover:scale-125 transition-all z-[60]"
-                     >
-                       ×
-                     </button>
+                <div className={`w-4 h-4 bg-white border-2 border-zinc-950 rounded-full shadow-2xl relative transition-all ${selectedPinId === item.id ? 'ring-8 ring-white/20 scale-125' : ''} ${highlightedItemId === item.id ? 'animate-ping' : 'animate-pulse'}`}>
+                   {holdProgress > 0 && selectedPinId !== item.id && editMode !== item.id && hoveredPin === item.id && (
+                     <div className="absolute -inset-2 rounded-full border border-white/80 border-t-transparent animate-spin" />
                    )}
                 </div>
 
-                <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-zinc-950 px-5 py-3 border border-zinc-800 shadow-2xl opacity-0 group-hover/pin:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-40 flex flex-col gap-1">
-                   <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white leading-none">{item.name}</span>
-                   <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-bold">{item.loc_note || 'INDEXED'}</span>
-                   <div className="flex gap-4 mt-2">
-                     <Link to={`/item/${item.id}`} className="text-[8px] uppercase tracking-widest font-bold text-zinc-400 underline underline-offset-4 pointer-events-auto hover:text-white">DETAILS</Link>
-                     <span className="text-[8px] uppercase tracking-widest font-bold text-zinc-600">DRAG_TO_CALIBRATE</span>
-                   </div>
-                </div>
+                {/* ITEM POPUP - STICKY */}
+                {(selectedPinId === item.id || (hoveredPin === item.id && !selectedPinId)) && !editMode && (
+                  <div 
+                    className="absolute top-12 left-1/2 -translate-x-1/2 bg-zinc-950 px-6 py-5 border border-zinc-800 shadow-2xl whitespace-nowrap z-[300] flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex justify-between items-center gap-12">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white leading-none">{item.name}</span>
+                        <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-bold">{item.loc_note || 'INDEXED'}</span>
+                      </div>
+                      <button 
+                        onClick={(e) => deIndexItem(e, item.id)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        className="ignore-pin-interaction w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center text-[16px] font-bold hover:bg-red-700 transition-all shadow-xl active:scale-90"
+                        title="De-index Unit"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <div className="flex justify-between items-center border-t border-zinc-800 pt-4">
+                      <Link 
+                        to={`/item/${item.id}`} 
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="ignore-pin-interaction text-[9px] uppercase tracking-widest font-bold text-white underline underline-offset-8 hover:text-zinc-300"
+                      >
+                        DETAILS
+                      </Link>
+                      <span className="text-[8px] uppercase tracking-widest font-bold text-zinc-600 italic ml-4">Hold to move</span>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
 
-            {editMode && (
-              <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur px-8 py-3 text-[10px] font-bold uppercase tracking-[0.4em] text-white border border-zinc-700 animate-pulse">
-                Spatial Recalibration in Progress...
-              </div>
-            )}
-
             <div className="absolute bottom-10 right-10 flex gap-4">
-              <Link 
-                to="/add-room" 
-                state={{ parentId: currentRoomId }}
-                className="bg-white px-6 py-3 text-[9px] font-bold uppercase tracking-widest text-black hover:bg-zinc-100 shadow-xl border border-zinc-900"
+              <button 
+                onClick={() => setShowDeployDrawer(true)}
+                className="bg-zinc-950 px-6 py-3 text-[9px] font-bold uppercase tracking-widest text-white hover:bg-black shadow-xl border border-zinc-800"
               >
-                + Nest Sub-Node
-              </Link>
+                + Deploy Existing Unit
+              </button>
+              <Link to="/add-room" state={{ parentId: currentRoomId }} className="bg-white px-6 py-3 text-[9px] font-bold uppercase tracking-widest text-black hover:bg-zinc-100 shadow-xl border border-zinc-900">+ Nest Sub-Node</Link>
             </div>
           </div>
 
@@ -212,25 +363,19 @@ const Atlas: React.FC<AtlasProps> = ({ ownerId }) => {
       ) : (
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 px-4">
           {rooms.filter(r => !r.parent_id).map(room => (
-            <div 
-              key={room.id} 
-              onClick={() => setCurrentRoomId(room.id)}
-              className="group cursor-pointer border border-zinc-100 bg-white hover:border-zinc-950 transition-all duration-700 shadow-sm hover:shadow-2xl overflow-hidden flex flex-col"
-            >
+            <div key={room.id} onClick={() => setCurrentRoomId(room.id)} className="group cursor-pointer border border-zinc-100 bg-white hover:border-zinc-950 transition-all duration-700 shadow-sm hover:shadow-2xl overflow-hidden flex flex-col">
               <div className="aspect-[16/10] bg-zinc-50 relative overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-1000">
                 <img src={room.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-                <div className="absolute inset-0 bg-zinc-950/20 group-hover:bg-transparent transition-colors" />
               </div>
               <div className="p-10 flex justify-between items-center">
                 <h3 className="text-[18px] font-bold uppercase tracking-[0.4em] text-zinc-900">{room.name}</h3>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 group-hover:text-zinc-950 transition-colors">Enter Node →</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 group-hover:text-zinc-900">Enter Node →</span>
               </div>
             </div>
           ))}
-          
           <Link to="/add-room" className="aspect-[16/10] border-2 border-dashed border-zinc-100 flex flex-col items-center justify-center gap-4 hover:border-zinc-900 transition-all group bg-zinc-50/20">
-             <span className="text-[32px] text-zinc-200 group-hover:text-zinc-900 transition-colors">+</span>
-             <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-300 group-hover:text-zinc-900 transition-colors">Establish Root Node</span>
+             <span className="text-[32px] text-zinc-200 group-hover:text-zinc-900">+</span>
+             <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-zinc-300 group-hover:text-zinc-900">Establish Root Node</span>
           </Link>
         </section>
       )}

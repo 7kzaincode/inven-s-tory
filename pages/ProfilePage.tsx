@@ -7,7 +7,7 @@ import { Item, Profile, Friend } from '../types';
 import { processImageWithAI } from '../services/geminiService';
 import { cleanHandle, cleanStrict } from '../services/safetyService';
 
-// Fallback legacy profile data
+// Fallback legacy profile data (Trimmed to 2 nodes)
 const LEGACY_DATA: Record<string, any> = {
   'brutalist_lab': {
     id: 'legacy-node-001',
@@ -28,42 +28,6 @@ const LEGACY_DATA: Record<string, any> = {
     stats: { totalVal: 8200, liquidCount: 2 },
     items: [
       { id: 'l3', name: 'OPTIC GEN 2', category: 'HARDWARE', condition: 'VNDS', price: 800, image_url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop', public: true, for_trade: true }
-    ]
-  },
-  'hardware_vault': {
-    id: 'legacy-node-003',
-    username: 'hardware_vault',
-    bio: 'Mapping the intersection of physical utility and identity through high-performance objects.',
-    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop',
-    stats: { totalVal: 32000, liquidCount: 12 },
-    items: []
-  },
-  'studio_index': {
-    id: 'legacy-node-004',
-    username: 'studio_index',
-    bio: 'Typography, brutalist print media, and rare book curation. The history of the printed word as object.',
-    avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=200&auto=format&fit=crop',
-    stats: { totalVal: 19800, liquidCount: 5 },
-    items: [
-       { id: 'l4', name: 'DESIGN_MANUAL_1', category: 'MEDIA', condition: 'ARCHIVAL', price: 1200, image_url: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=400&auto=format&fit=crop', public: true, for_trade: true }
-    ]
-  },
-  'analog_archive': {
-    id: 'legacy-node-005',
-    username: 'analog_archive',
-    bio: 'Magnetic media specialist. 35mm film, modular synthesis, and the preservation of analog decay.',
-    avatar_url: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?q=80&w=200&auto=format&fit=crop',
-    stats: { totalVal: 24500, liquidCount: 8 },
-    items: []
-  },
-  'tech_decay': {
-    id: 'legacy-node-006',
-    username: 'tech_decay',
-    bio: 'Translucent plastics and early 2000s computing. Documenting the aesthetic of the early internet age.',
-    avatar_url: 'https://images.unsplash.com/photo-1552058544-f2b08422138a?q=80&w=200&auto=format&fit=crop',
-    stats: { totalVal: 11200, liquidCount: 3 },
-    items: [
-       { id: 'l5', name: 'G3_NODE', category: 'HARDWARE', condition: 'VNDS', price: 950, image_url: 'https://images.unsplash.com/photo-1547394765-185e1e68f34e?q=80&w=400&auto=format&fit=crop', public: true, for_trade: true }
     ]
   }
 };
@@ -120,7 +84,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
     
     if (!isEditing) setEditBio(profile.bio || '');
 
-    // Note: Owners see all their items, non-owners only see public ones.
     const isSelf = currentUser?.id === profile.id;
     let query = supabase.from('items').select('*').eq('owner_id', profile.id).order('created_at', { ascending: false });
     if (!isSelf) {
@@ -285,9 +248,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
               <span className="text-[16px] font-bold text-zinc-900">{items.length > 0 ? Math.round((stats.liquidCount / items.length) * 100) : 0}%</span>
             </div>
           </div>
-          {isSelf && stats.privateCount > 0 && (
-            <p className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold">({stats.privateCount} UNITS VAULTED / HIDDEN)</p>
-          )}
         </div>
 
         <div className="w-full max-w-lg mt-12 text-center">
@@ -299,7 +259,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
                 placeholder="IDENTITY BIOGRAPHY..." 
                 className="w-full bg-zinc-50 border border-zinc-100 p-8 text-[14px] font-medium tracking-wide outline-none h-40 resize-none text-black shadow-inner" 
               />
-              <div className="text-[9px] text-right font-bold text-zinc-300 uppercase tracking-widest">{editBio.length}/256</div>
               <div className="flex gap-6">
                 <button onClick={saveProfile} disabled={actionLoading} className="flex-1 py-5 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all">Commit</button>
                 <button onClick={() => setIsEditing(false)} className="flex-1 py-5 border border-zinc-900 text-[11px] font-bold uppercase tracking-[0.3em] text-black hover:bg-zinc-50">Cancel</button>
@@ -332,9 +291,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
                     <Link to={`/trade/${targetProfile.username}`} className="text-[11px] uppercase tracking-[0.3em] border border-zinc-900 text-zinc-900 font-bold px-10 py-5 hover:bg-zinc-50">Propose Trade</Link>
                     <Link to={`/messages/${targetProfile.id}`} className="text-[11px] uppercase tracking-[0.3em] bg-zinc-900 text-white font-bold px-10 py-5 hover:bg-black transition-all shadow-xl">Message</Link>
                   </>
-                )}
-                {isLegacy && (
-                  <span className="text-[10px] uppercase tracking-widest text-zinc-300 font-bold italic py-5 border-y border-zinc-50">Simulation Hub: Interactivity Restricted</span>
                 )}
               </>
             )}
