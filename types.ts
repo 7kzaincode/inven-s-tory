@@ -1,5 +1,4 @@
 
-
 export interface Profile {
   id: string;
   username: string;
@@ -10,10 +9,21 @@ export interface Profile {
   created_at: string;
 }
 
-// Added zone property to resolve 'Property zone does not exist on type Item' errors in HouseMap.tsx
+export interface Room {
+  id: string;
+  owner_id: string;
+  parent_id?: string;
+  name: string;
+  image_url: string;
+  x?: number; // Position on parent photo
+  y?: number; // Position on parent photo
+  created_at: string;
+}
+
 export interface Item {
   id: string;
   owner_id: string;
+  room_id?: string; // Link to the specific hierarchical room
   name: string;
   image_url: string;
   public: boolean;
@@ -22,21 +32,11 @@ export interface Item {
   price?: number;
   category?: string;
   condition?: string;
-  // Represents the physical location node within the archival space
-  zone?: string;
+  // Spatial coordinates on the assigned room's photo
+  loc_x?: number; 
+  loc_y?: number; 
+  loc_note?: string;
   created_at: string;
-}
-
-export interface ItemHistory {
-  id: string;
-  item_id: string;
-  from_owner_id?: string;
-  to_owner_id: string;
-  event_type: string;
-  price?: number;
-  created_at: string;
-  from_profile?: Profile;
-  to_profile?: Profile;
 }
 
 export interface Message {
@@ -60,24 +60,24 @@ export interface Trade {
   receiver?: Profile;
 }
 
-export interface PublicTradeAd {
-  id: string;
-  owner_id: string;
-  text: string;
-  offering_ids: string[];
-  looking_for: string;
-  created_at: string;
-  owner?: Profile;
-}
-
 export interface Friend {
   id: string;
   requester_id: string;
   receiver_id: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: 'pending' | 'accepted' | 'declined';
   created_at: string;
   requester?: Profile;
   receiver?: Profile;
+}
+
+export interface PublicTradeAd {
+  id: string;
+  owner_id: string;
+  text: string;
+  looking_for?: string;
+  offering_ids?: string[];
+  created_at: string;
+  owner?: Profile;
 }
 
 export interface UserSession {

@@ -13,7 +13,6 @@ const Messages: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [targetOnline, setTargetOnline] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -120,7 +119,7 @@ const Messages: React.FC = () => {
               <div className="w-8 h-8 rounded-full border border-zinc-100 bg-zinc-50 overflow-hidden flex-shrink-0">
                 {c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-300 font-bold">@</div>}
               </div>
-              <span className="text-[12px] font-bold uppercase tracking-widest truncate">@{c.username}</span>
+              <span className="text-[12px] font-bold uppercase tracking-widest truncate break-all">@{c.username}</span>
             </Link>
           ))}
         </div>
@@ -133,7 +132,7 @@ const Messages: React.FC = () => {
               <div className="w-12 h-12 rounded-full border border-zinc-100 bg-zinc-50 overflow-hidden">
                 {selectedUser.avatar_url && <img src={selectedUser.avatar_url} className="w-full h-full object-cover" />}
               </div>
-              <span className="text-[15px] font-bold uppercase tracking-[0.2em] text-zinc-900">@{selectedUser.username}</span>
+              <span className="text-[15px] font-bold uppercase tracking-[0.2em] text-zinc-900 break-all">@{selectedUser.username}</span>
             </header>
             
             <div className="flex-1 overflow-y-auto p-12 space-y-10 bg-[#FAFAFA]">
@@ -147,7 +146,7 @@ const Messages: React.FC = () => {
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
                       )}
-                      <div className={`p-7 text-[14px] font-medium leading-relaxed tracking-wide ${isMe ? 'bg-zinc-900 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-white border border-zinc-100 text-zinc-900 rounded-r-2xl rounded-tl-2xl'}`}>
+                      <div className={`p-7 text-[14px] font-medium leading-relaxed tracking-wide break-all ${isMe ? 'bg-zinc-900 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-white border border-zinc-100 text-zinc-900 rounded-r-2xl rounded-tl-2xl'}`}>
                         {censor(m.text)}
                       </div>
                     </div>

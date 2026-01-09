@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../services/supabase';
-import { Item, Profile } from '../types';
+import { supabase } from '../services/supabase.ts';
+import { Item, Profile } from '../types.ts';
 
 interface TradeBuilderProps {
   currentUser: Profile;
@@ -31,7 +31,11 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
       const { data: myData } = await supabase.from('items').select('*').eq('owner_id', currentUser.id).eq('for_trade', true);
       if (myData) setMyItems(myData as Item[]);
 
-      const { data: theirData } = await supabase.from('items').select('*').eq('owner_id', profile.id).eq('for_trade', true).eq('public', true);
+      const { data: theirData } = await supabase.from('items')
+        .select('*')
+        .eq('owner_id', profile.id)
+        .eq('for_trade', true)
+        .eq('public', true);
       if (theirData) setTheirItems(theirData as Item[]);
 
       setLoading(false);
@@ -74,10 +78,10 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
     setSubmitting(false);
   };
 
-  if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em]">Initializing Trade Interface...</div>;
+  if (loading) return <div className="py-32 text-center text-[10px] uppercase tracking-[0.4em] font-bold animate-pulse">Initializing Trade Interface...</div>;
 
   return (
-    <div className="w-full flex flex-col items-center">
+    <div className="w-full flex flex-col items-center animate-in fade-in duration-1000">
       <header className="mb-16 text-center">
         <h1 className="text-[14px] uppercase tracking-[0.4em] mb-2 font-bold">TRADE BUILDER</h1>
         <p className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-bold">PROPOSING TO @{username}</p>
@@ -94,9 +98,12 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
                 draggable 
                 onDragStart={(e) => handleDragStart(e, item, 'my')}
                 onClick={() => setPreviewItem(item)}
-                className="aspect-square bg-zinc-50 border border-transparent hover:border-zinc-900 cursor-grab transition-all p-2"
+                className="aspect-square bg-zinc-50 border border-transparent hover:border-zinc-900 cursor-grab transition-all p-2 relative group overflow-hidden"
               >
                 <img src={item.image_url} alt="" className="w-full h-full object-contain mix-blend-multiply" />
+                <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                   <span className="text-[7px] text-black font-bold uppercase tracking-widest break-all px-1 text-center">{item.name}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -116,7 +123,7 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
                   <img src={item.image_url} alt="" className="w-full h-full object-contain" />
                   <button 
                     onClick={() => setOffering(offering.filter(i => i.id !== item.id))}
-                    className="absolute -top-2 -right-2 w-5 h-5 bg-zinc-900 text-white text-[10px] flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
+                    className="absolute -top-2 -right-2 w-5 h-5 bg-zinc-900 text-white text-[10px] flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 shadow-xl"
                   >
                     ×
                   </button>
@@ -140,7 +147,7 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
                   <img src={item.image_url} alt="" className="w-full h-full object-contain" />
                   <button 
                     onClick={() => setRequesting(requesting.filter(i => i.id !== item.id))}
-                    className="absolute -top-2 -right-2 w-5 h-5 bg-zinc-900 text-white text-[10px] flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
+                    className="absolute -top-2 -right-2 w-5 h-5 bg-zinc-900 text-white text-[10px] flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 shadow-xl"
                   >
                     ×
                   </button>
@@ -152,7 +159,7 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
 
           <button 
             onClick={submitTrade} disabled={submitting || (offering.length === 0 && requesting.length === 0)}
-            className="w-full py-6 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.4em] hover:bg-black transition-all disabled:opacity-20"
+            className="w-full py-6 bg-zinc-900 text-white text-[11px] font-bold uppercase tracking-[0.4em] hover:bg-black transition-all disabled:opacity-20 shadow-2xl active:scale-95"
           >
             {submitting ? 'SENDING PROPOSAL...' : 'CONFIRM TRADE REQUEST'}
           </button>
@@ -168,9 +175,12 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
                 draggable 
                 onDragStart={(e) => handleDragStart(e, item, 'their')}
                 onClick={() => setPreviewItem(item)}
-                className="aspect-square bg-zinc-50 border border-transparent hover:border-zinc-900 cursor-grab transition-all p-2"
+                className="aspect-square bg-zinc-50 border border-transparent hover:border-zinc-900 cursor-grab transition-all p-2 relative group overflow-hidden"
               >
                 <img src={item.image_url} alt="" className="w-full h-full object-contain mix-blend-multiply" />
+                <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                   <span className="text-[7px] text-black font-bold uppercase tracking-widest break-all px-1 text-center">{item.name}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -179,15 +189,15 @@ const TradeBuilder: React.FC<TradeBuilderProps> = ({ currentUser }) => {
 
       {/* Item Preview Modal */}
       {previewItem && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-white/95 backdrop-blur-sm" onClick={() => setPreviewItem(null)}>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-white/95 backdrop-blur-sm p-6" onClick={() => setPreviewItem(null)}>
           <div className="max-w-md w-full p-12 bg-white border border-zinc-100 shadow-2xl animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
             <div className="aspect-square mb-8">
               <img src={previewItem.image_url} className="w-full h-full object-contain mix-blend-multiply" />
             </div>
             <div className="text-center space-y-4">
-              <h2 className="text-[20px] font-bold uppercase tracking-widest text-zinc-900">{previewItem.name}</h2>
+              <h2 className="text-[20px] font-bold uppercase tracking-widest text-zinc-900 break-all">{previewItem.name}</h2>
               <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">{previewItem.category} / {previewItem.condition}</p>
-              <button onClick={() => setPreviewItem(null)} className="w-full py-4 mt-8 bg-zinc-900 text-white text-[10px] uppercase font-bold tracking-widest">Close</button>
+              <button onClick={() => setPreviewItem(null)} className="w-full py-4 mt-8 bg-zinc-900 text-white text-[10px] uppercase font-bold tracking-widest hover:bg-black transition-all">Close</button>
             </div>
           </div>
         </div>

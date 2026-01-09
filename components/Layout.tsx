@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Profile } from '../types';
+import { Profile } from '../types.ts';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,7 +16,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     <div className="min-h-screen bg-white flex flex-col items-center">
       <nav className="fixed top-0 w-full z-50 bg-white/95 backdrop-blur-md px-8 py-7 flex justify-between items-baseline max-w-[1600px] mx-auto border-b border-zinc-100 shadow-sm transition-all duration-300">
         <div className="flex gap-16 items-baseline">
-          <Link to="/" className="text-[16px] font-bold tracking-[0.3em] uppercase text-zinc-950">
+          <Link to="/about" className="text-[16px] font-bold tracking-[0.3em] uppercase text-zinc-950 hover:opacity-50 transition-opacity">
             INVEN[S]TORY
           </Link>
           <div className="flex gap-10">
@@ -29,6 +29,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
             {user && (
               <>
                 <Link 
+                  to="/atlas" 
+                  className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname === '/atlas' ? 'text-zinc-950 scale-110' : 'text-zinc-400 hover:text-zinc-950 underline decoration-zinc-100 underline-offset-8'}`}
+                >
+                  ATLAS
+                </Link>
+                <Link 
                   to={`/profile/${user.username}`} 
                   className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname.startsWith('/profile') && location.pathname.includes(user.username) ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
                 >
@@ -36,15 +42,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                 </Link>
                 <Link 
                   to="/inbox" 
-                  className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname === '/inbox' ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
+                  className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname === '/inbox' || location.pathname.startsWith('/messages') ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
                 >
                   INBOX
-                </Link>
-                <Link 
-                  to="/messages" 
-                  className={`text-[12px] uppercase tracking-[0.2em] font-bold transition-all duration-300 ${location.pathname.startsWith('/messages') ? 'text-zinc-950 scale-105' : 'text-zinc-400 hover:text-zinc-950'}`}
-                >
-                  MESSAGES
                 </Link>
               </>
             )}

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Item } from '../types';
+import { Item } from '../types.ts';
 import { Link } from 'react-router-dom';
 
 interface InventoryGridProps {
@@ -12,7 +12,7 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({ items, isOwner }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-8 gap-y-16 w-full">
       {items.map((item) => (
-        <div key={item.id} className="group flex flex-col relative">
+        <div key={item.id} className="group flex flex-col relative overflow-hidden">
           <Link to={`/item/${item.id}`} className="w-full aspect-square mb-6 overflow-hidden bg-[#FDFDFD] border border-zinc-50 flex items-center justify-center transition-all duration-700 hover:shadow-2xl hover:-translate-y-2 relative">
             <img 
               src={item.image_url} 
@@ -40,7 +40,7 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({ items, isOwner }) => {
 
           <div className="flex flex-col space-y-2 px-1">
             <div className="flex justify-between items-start">
-              <Link to={`/item/${item.id}`} className="text-[12px] tracking-[0.1em] text-zinc-900 font-bold uppercase hover:underline leading-tight max-w-[80%]">
+              <Link to={`/item/${item.id}`} className="text-[12px] tracking-[0.1em] text-zinc-900 font-bold uppercase hover:underline leading-tight max-w-[80%] break-all">
                 {item.name}
               </Link>
               <div className="flex gap-1">

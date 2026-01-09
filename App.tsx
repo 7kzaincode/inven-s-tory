@@ -1,19 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout';
-import Explore from './pages/Explore';
-import AddItem from './pages/AddItem';
-import Login from './pages/Login';
-import ProfilePage from './pages/ProfilePage';
-import ItemDetail from './pages/ItemDetail';
-import Friends from './pages/Friends';
-import Inbox from './pages/Inbox';
-import Messages from './pages/Messages';
-import TradeBuilder from './pages/TradeBuilder';
-import { UserSession, Profile } from './types';
-import { supabase } from './services/supabase';
-import { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import Layout from './components/Layout.tsx';
+import Explore from './pages/Explore.tsx';
+import AddItem from './pages/AddItem.tsx';
+import AddRoom from './pages/AddRoom.tsx';
+import Login from './pages/Login.tsx';
+import ProfilePage from './pages/ProfilePage.tsx';
+import ItemDetail from './pages/ItemDetail.tsx';
+import Friends from './pages/Friends.tsx';
+import Inbox from './pages/Inbox.tsx';
+import Atlas from './pages/Atlas.tsx';
+import TradeBuilder from './pages/TradeBuilder.tsx';
+import About from './pages/About.tsx';
+import { UserSession, Profile } from './types.ts';
+import { supabase } from './services/supabase.ts';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<UserSession>({
@@ -21,19 +22,10 @@ const App: React.FC = () => {
     profile: null
   });
   const [loading, setLoading] = useState(true);
-  const [isRecovering, setIsRecovering] = useState(false);
 
   useEffect(() => {
-    const fullUrl = window.location.href;
-    const isRecoveryUrl = fullUrl.includes('type=recovery') || 
-                         fullUrl.includes('recovery_token=');
-    
-    if (isRecoveryUrl) {
-      setIsRecovering(true);
-    }
-
     supabase.auth.getSession()
-      .then(({ data: { session: currentSession } }: { data: { session: Session | null } }) => {
+      .then(({ data: { session: currentSession } }) => {
         if (currentSession) {
           fetchProfile(currentSession.user.id, currentSession.user.email!);
         } else {
@@ -41,18 +33,11 @@ const App: React.FC = () => {
         }
       });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && window.location.href.includes('type=recovery'))) {
-        setIsRecovering(true);
-      }
-      
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         fetchProfile(session.user.id, session.user.email!);
       } else {
         setSession({ user: null, profile: null });
-        if (!window.location.href.includes('type=recovery')) {
-          setIsRecovering(false);
-        }
         setLoading(false);
       }
     });
@@ -84,15 +69,16 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession({ user: null, profile: null });
-    setIsRecovering(false);
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-6">
-          <div className="w-8 h-8 border-t border-black rounded-full animate-spin" />
-          <span className="text-[10px] uppercase tracking-[0.4em] text-gray-900 font-bold animate-pulse">Synchronizing Archive...</span>
+        <div className="flex flex-col items-center gap-12">
+          <div className="w-16 h-[1px] bg-zinc-100 relative overflow-hidden">
+            <div className="absolute inset-0 bg-zinc-900 animate-[slide_1.5s_infinite_linear]" style={{width: '30%'}} />
+          </div>
+          <span className="text-[10px] uppercase tracking-[0.8em] text-zinc-900 font-bold ml-[0.8em]">ARCHIVE_SYNC</span>
         </div>
       </div>
     );
@@ -108,50 +94,26 @@ const App: React.FC = () => {
       >
         <Routes>
           <Route path="/" element={<Explore />} />
-          <Route 
-            path="/login" 
-            element={(session.user && !isRecovering) ? <Navigate to="/" replace /> : <Login />} 
-          />
-          <Route path="/recovery" element={<Login />} />
-          <Route 
-            path="/my-space" 
-            element={session.profile ? <Navigate to={`/profile/${session.profile.username}`} replace /> : <Navigate to="/login" replace />} 
-          />
-          <Route 
-            path="/add" 
-            element={activeUserId ? <AddItem ownerId={activeUserId} /> : <Navigate to="/login" replace />} 
-          />
-          <Route 
-            path="/friends" 
-            element={session.profile ? <Friends profile={session.profile} /> : <Navigate to="/login" replace />} 
-          />
-          <Route 
-            path="/inbox" 
-            element={session.profile ? <Inbox profile={session.profile} /> : <Navigate to="/login" replace />} 
-          />
-          <Route 
-            path="/messages" 
-            element={activeUserId ? <Messages /> : <Navigate to="/login" replace />} 
-          />
-          <Route 
-            path="/messages/:targetUserId" 
-            element={activeUserId ? <Messages /> : <Navigate to="/login" replace />} 
-          />
-          <Route 
-            path="/profile/:username" 
-            element={<ProfilePage currentUser={session.profile} />} 
-          />
-          <Route 
-            path="/item/:id" 
-            element={<ItemDetail />} 
-          />
-          <Route 
-            path="/trade/:username" 
-            element={session.profile ? <TradeBuilder currentUser={session.profile} /> : <Navigate to="/login" replace />} 
-          />
+          <Route path="/about" element={<About />} />
+          <Route path="/atlas" element={activeUserId ? <Atlas ownerId={activeUserId} /> : <Navigate to="/login" replace />} />
+          <Route path="/login" element={session.user ? <Navigate to="/" replace /> : <Login />} />
+          <Route path="/add" element={activeUserId ? <AddItem ownerId={activeUserId} /> : <Navigate to="/login" replace />} />
+          <Route path="/add-room" element={activeUserId ? <AddRoom /> : <Navigate to="/login" replace />} />
+          <Route path="/friends" element={session.profile ? <Friends profile={session.profile} /> : <Navigate to="/login" replace />} />
+          <Route path="/inbox" element={session.profile ? <Inbox profile={session.profile} /> : <Navigate to="/login" replace />} />
+          <Route path="/messages/:targetUserId" element={session.profile ? <Inbox profile={session.profile} /> : <Navigate to="/login" replace />} />
+          <Route path="/profile/:username" element={<ProfilePage currentUser={session.profile} />} />
+          <Route path="/item/:id" element={<ItemDetail />} />
+          <Route path="/trade/:username" element={session.profile ? <TradeBuilder currentUser={session.profile} /> : <Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
+      <style>{`
+        @keyframes slide {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(400%); }
+        }
+      `}</style>
     </Router>
   );
 };

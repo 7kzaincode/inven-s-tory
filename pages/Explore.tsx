@@ -5,7 +5,6 @@ import { supabase } from '../services/supabase';
 import { Profile, PublicTradeAd, Item } from '../types';
 import { cleanStrict } from '../services/safetyService';
 
-// HARDCODED LEGACY DATA FOR RECRUITERS
 const LEGACY_ARCHIVISTS = [
   { 
     id: 'legacy-node-001', 
@@ -113,8 +112,11 @@ const Explore: React.FC = () => {
     supabase.auth.getSession().then(({ data }) => {
       setCurrentUserId(data.session?.user.id || null);
     });
-    fetchArchives();
-    fetchTradeAds();
+    
+    Promise.all([
+      fetchArchives(),
+      fetchTradeAds()
+    ]).finally(() => setLoading(false));
   }, []);
 
   const showNotify = (msg: string) => {
@@ -123,7 +125,6 @@ const Explore: React.FC = () => {
   };
 
   const fetchArchives = async (query: string = searchQuery) => {
-    setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const myId = session?.user.id;
@@ -135,18 +136,19 @@ const Explore: React.FC = () => {
       let results: any[] = [];
       
       if (profiles) {
-        for (const p of profiles) {
-          if (p.id === myId) continue;
+        results = await Promise.all(profiles.map(async (p) => {
+          if (p.id === myId) return null;
           const { count } = await supabase.from('items')
             .select('*', { count: 'exact', head: true })
             .eq('owner_id', p.id).eq('public', true);
-          results.push({ ...p, count: count || 0 });
-        }
+          return { ...p, count: count || 0 };
+        }));
+        results = results.filter(r => r !== null);
       }
 
       setArchives(results);
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error("Archive fetch error:", err);
     }
   };
 
@@ -186,10 +188,9 @@ const Explore: React.FC = () => {
     ? [...LEGACY_BULLETINS, ...tradeAds]
     : tradeAds;
 
-  // REUSABLE STATS OVERLAY
   const ItemStatOverlay = ({ item }: { item: any }) => (
     <div className="absolute inset-0 bg-zinc-950/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center p-2 text-center space-y-2 z-20 pointer-events-none">
-      <span className="text-[7px] text-white font-bold uppercase tracking-widest truncate w-full">{item.name}</span>
+      <span className="text-[7px] text-white font-bold uppercase tracking-widest truncate w-full break-all">{item.name}</span>
       <div className="space-y-0.5">
         <span className="text-[5px] uppercase tracking-[0.2em] text-zinc-500 font-bold block">CATEGORY</span>
         <span className="text-[7px] uppercase tracking-widest text-zinc-300 font-bold">{item.category}</span>
@@ -198,6 +199,13 @@ const Explore: React.FC = () => {
         <span className="text-[5px] uppercase tracking-[0.2em] text-zinc-500 font-bold block">CONDITION</span>
         <span className="text-[7px] uppercase tracking-widest text-zinc-300 font-bold">{item.condition}</span>
       </div>
+    </div>
+  );
+
+  if (loading && archives.length === 0) return (
+    <div className="py-40 flex flex-col items-center gap-6">
+      <div className="w-12 h-12 border-4 border-zinc-100 border-t-zinc-900 rounded-full animate-spin" />
+      <div className="text-[11px] uppercase tracking-[0.6em] font-bold text-zinc-900 animate-pulse">Initializing Directory...</div>
     </div>
   );
 
@@ -247,7 +255,7 @@ const Explore: React.FC = () => {
                     <span className="text-[20px] font-bold text-zinc-300 uppercase">@{a.username[0]}</span>
                   )}
                 </div>
-                <h3 className="text-[14px] uppercase tracking-[0.25em] font-bold text-zinc-900 relative z-10">@{a.username}</h3>
+                <h3 className="text-[14px] uppercase tracking-[0.25em] font-bold text-zinc-900 relative z-10 break-all">@{a.username}</h3>
                 <p className="text-[10px] text-zinc-500 uppercase mt-3 tracking-[0.2em] font-bold relative z-10">{a.count} ARCHIVAL UNITS</p>
                 <div className="absolute top-0 right-0 p-4 text-[8px] font-bold text-zinc-100 tracking-tighter select-none uppercase">
                   {a.id.startsWith('legacy') ? 'LEGACY_NODE' : `NODE_${a.id.slice(0,4)}`}
@@ -264,7 +272,7 @@ const Explore: React.FC = () => {
           </div>
           <div className="space-y-10">
             {displayedBulletins.map((ad: any) => (
-              <div key={ad.id} className="bg-white border border-zinc-100 p-8 shadow-sm hover:shadow-md transition-shadow group relative">
+              <div key={ad.id} className="bg-white border border-zinc-100 p-8 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden">
                 {ad.owner_id === currentUserId && (
                   <div className="absolute top-0 left-0 bg-zinc-950 text-white text-[7px] px-2 py-1 font-bold tracking-widest">MY BULLETIN</div>
                 )}
@@ -272,10 +280,10 @@ const Explore: React.FC = () => {
                   <div className="absolute top-0 left-0 bg-zinc-100 text-zinc-400 text-[7px] px-2 py-1 font-bold tracking-widest uppercase">Legacy Node</div>
                 )}
                 <div className="flex justify-between items-center mb-6">
-                  <Link to={`/profile/${ad.owner?.username}`} className="text-[11px] font-bold uppercase tracking-widest text-zinc-900 hover:underline">@{ad.owner?.username}</Link>
+                  <Link to={`/profile/${ad.owner?.username}`} className="text-[11px] font-bold uppercase tracking-widest text-zinc-900 hover:underline break-all">@{ad.owner?.username}</Link>
                   <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-bold">{new Date(ad.created_at).toLocaleDateString()}</span>
                 </div>
-                <p className="text-[14px] leading-relaxed text-zinc-800 font-medium mb-8 italic">"{ad.text}"</p>
+                <p className="text-[14px] leading-relaxed text-zinc-800 font-medium mb-8 italic break-all">"{ad.text}"</p>
                 
                 {ad.items && ad.items.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-8">
@@ -290,24 +298,18 @@ const Explore: React.FC = () => {
                           className="w-full h-full object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-110" 
                         />
                         <ItemStatOverlay item={it} />
-                        {it.owner_id === currentUserId && (
-                          <div className="absolute top-0 right-0 bg-zinc-950 text-white text-[6px] px-1 font-bold z-30">MY UNIT</div>
-                        )}
                       </Link>
                     ))}
                   </div>
                 )}
 
-                <div className="flex justify-between items-center pt-6 border-t border-zinc-50">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">LF: {ad.looking_for || 'Inquiry'}</span>
+                <div className="flex flex-col gap-4 pt-6 border-t border-zinc-50">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 break-all leading-tight">LF: {ad.looking_for || 'Inquiry'}</span>
                   {ad.owner_id !== currentUserId && !ad.owner_id.startsWith('legacy') && (
                     <div className="flex gap-4">
                       <Link to={`/messages/${ad.owner_id}`} className="text-[10px] font-bold uppercase tracking-widest text-zinc-900 underline underline-offset-4">Message</Link>
                       <Link to={`/trade/${ad.owner?.username}`} className="text-[10px] font-bold uppercase tracking-widest text-zinc-900 border border-zinc-900 px-4 py-1.5 hover:bg-zinc-900 hover:text-white transition-all">Offer</Link>
                     </div>
-                  )}
-                  {ad.owner_id.startsWith('legacy') && (
-                    <span className="text-[8px] uppercase tracking-widest text-zinc-300 font-bold italic">Simulation Node</span>
                   )}
                 </div>
               </div>
