@@ -6,24 +6,23 @@ import { supabase } from '../services/supabase';
 import { Item, Profile, Friend } from '../types';
 import { processImageWithAI } from '../services/geminiService';
 import { cleanHandle, cleanStrict } from '../services/safetyService';
+import HandshakeModal from '../components/HandshakeModal';
 
-// Fallback legacy profile data (Trimmed to 2 nodes)
 const LEGACY_DATA: Record<string, any> = {
   'brutalist_lab': {
     id: 'legacy-node-001',
     username: 'brutalist_lab',
-    bio: 'Curating monochrome forms and brutalist archival hardware. Focus on 1970s Braun design and minimalist objects.',
+    bio: 'Curating monochrome forms and brutalist archival hardware.',
     avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop',
     stats: { totalVal: 14500, liquidCount: 4 },
     items: [
-      { id: 'l1', name: 'BRAUN T3 RADIO', category: 'HARDWARE', condition: 'ARCHIVAL', price: 450, image_url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=400&auto=format&fit=crop', public: true, for_trade: true },
-      { id: 'l2', name: 'BRUTALIST VASE', category: 'OBJECT', condition: 'USED', price: 120, image_url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=400&auto=format&fit=crop', public: true, for_trade: true }
+      { id: 'l1', name: 'BRAUN T3 RADIO', category: 'HARDWARE', condition: 'ARCHIVAL', price: 450, image_url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=400&auto=format&fit=crop', public: true, for_trade: true }
     ]
   },
   'vintage_optics': {
     id: 'legacy-node-002',
     username: 'vintage_optics',
-    bio: 'Specialist in 90s tech, archival optics, and rare media repositories.',
+    bio: 'Specialist in 90s tech and archival optics.',
     avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=200&auto=format&fit=crop',
     stats: { totalVal: 8200, liquidCount: 2 },
     items: [
@@ -54,6 +53,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
   const [stats, setStats] = useState({ totalVal: 0, liquidCount: 0, privateCount: 0 });
   const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'accepted'>('none');
 
+  // Custom Modal state
+  const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; title: string; message: string } | null>(null);
+
   useEffect(() => {
     fetchProfileAndItems();
   }, [routeUsername]);
@@ -65,11 +67,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
       const data = LEGACY_DATA[routeUsername];
       setTargetProfile(data);
       setItems(data.items);
-      setStats({ 
-        totalVal: data.stats.totalVal, 
-        liquidCount: data.stats.liquidCount, 
-        privateCount: 0 
-      });
+      setStats({ totalVal: data.stats.totalVal, liquidCount: data.stats.liquidCount, privateCount: 0 });
       setLoading(false);
       return;
     }
@@ -81,26 +79,19 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
     }
     setTargetProfile(profile as Profile);
     setNewUsername(profile.username);
-    
     if (!isEditing) setEditBio(profile.bio || '');
 
     const isSelf = currentUser?.id === profile.id;
     let query = supabase.from('items').select('*').eq('owner_id', profile.id).order('created_at', { ascending: false });
-    if (!isSelf) {
-      query = query.eq('public', true);
-    }
+    if (!isSelf) query = query.eq('public', true);
 
     const { data: itemsData } = await query;
     if (itemsData) {
       setItems(itemsData as Item[]);
-      const total = itemsData.reduce((acc, it) => acc + (it.price || 0), 0);
-      const liquid = itemsData.filter(it => it.for_trade || it.for_sale).length;
-      const privateUnits = itemsData.filter(it => !it.public).length;
-      
       setStats({ 
-        totalVal: total, 
-        liquidCount: liquid, 
-        privateCount: privateUnits
+        totalVal: itemsData.reduce((acc, it) => acc + (it.price || 0), 0), 
+        liquidCount: itemsData.filter(it => it.for_trade || it.for_sale).length, 
+        privateCount: itemsData.filter(it => !it.public).length 
       });
     }
 
@@ -121,7 +112,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
     setActionLoading(true);
     const { error } = await supabase.from('profiles').update({ username: newUsername }).eq('id', currentUser?.id);
     if (error) {
-      alert("HANDLE UNAVAILABLE.");
+      setModalConfig({ isOpen: true, title: "HANDLE REJECTED", message: "THE REQUESTED HANDLE IS EITHER RESERVED OR UNAVAILABLE IN THE CENTRAL NODE." });
     } else {
       navigate(`/profile/${newUsername}`);
       setShowSettings(false);
@@ -149,6 +140,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
       reader.onload = async (event) => {
         const base64 = event.target?.result as string;
         const result = await processImageWithAI(base64);
+        if (result.error) {
+          setModalConfig({ isOpen: true, title: "IMAGE REJECTED", message: result.error });
+          setUploadingAvatar(false);
+          return;
+        }
         const finalUrl = result.url || base64;
         const fetchResponse = await fetch(finalUrl);
         const blob = await fetchResponse.blob();
@@ -191,6 +187,17 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ currentUser }) => {
 
   return (
     <div className="flex flex-col items-center w-full relative">
+      
+      {modalConfig && (
+        <HandshakeModal 
+          isOpen={modalConfig.isOpen}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          onConfirm={() => setModalConfig(null)}
+          onCancel={() => setModalConfig(null)}
+        />
+      )}
+
       <header className="w-full mb-32 flex flex-col items-center">
         {isSelf && (
           <button onClick={() => setShowSettings(!showSettings)} className="absolute top-0 right-0 p-4 opacity-20 hover:opacity-100 transition-opacity">

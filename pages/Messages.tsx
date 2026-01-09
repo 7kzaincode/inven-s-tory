@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { censor, isClean, cleanStrict } from '../services/safetyService';
 import { Profile, Message } from '../types';
+import HandshakeModal from '../components/HandshakeModal';
 
 const Messages: React.FC = () => {
   const { targetUserId } = useParams<{ targetUserId: string }>();
@@ -15,6 +16,9 @@ const Messages: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  // Modal State
+  const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; msgId: string } | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -77,10 +81,10 @@ const Messages: React.FC = () => {
     if (data) setMessages(data as Message[]);
   };
 
-  const deleteMessage = async (msgId: string) => {
-    if (!window.confirm("DE-INDEX THIS DIALOGUE FRAGMENT?")) return;
-    const { error } = await supabase.from('messages').delete().eq('id', msgId);
-    if (error) alert("DELETION FAILURE: ACCESS DENIED.");
+  const commitDeleteMessage = async () => {
+    if (!modalConfig) return;
+    const { error } = await supabase.from('messages').delete().eq('id', modalConfig.msgId);
+    setModalConfig(null);
   };
 
   const sendMessage = async (e?: React.FormEvent) => {
@@ -88,7 +92,7 @@ const Messages: React.FC = () => {
     if (!inputText.trim() || !selectedUser || !currentUserId || isSending) return;
 
     if (!isClean(inputText)) {
-      alert("ARCHIVAL REJECTION: CONTENT VIOLATES SAFETY PROTOCOL.");
+      setModalConfig({ isOpen: true, msgId: 'safety-rejection' }); // Using modal for safety too
       setInputText('');
       return;
     }
@@ -103,7 +107,6 @@ const Messages: React.FC = () => {
       text: msgText
     });
 
-    if (error) alert("SIGNAL FAILURE: " + error.message);
     setIsSending(false);
   };
 
@@ -111,6 +114,27 @@ const Messages: React.FC = () => {
 
   return (
     <div className="flex w-full h-[75vh] gap-12">
+      
+      {modalConfig && modalConfig.msgId !== 'safety-rejection' && (
+        <HandshakeModal 
+          isOpen={modalConfig.isOpen}
+          title="DE-INDEX DIALOGUE"
+          message="THIS FRAGMENT WILL BE REMOVED FROM THE CENTRAL COMMUNICATION SYNC."
+          onConfirm={commitDeleteMessage}
+          onCancel={() => setModalConfig(null)}
+        />
+      )}
+
+      {modalConfig && modalConfig.msgId === 'safety-rejection' && (
+        <HandshakeModal 
+          isOpen={modalConfig.isOpen}
+          title="ARCHIVAL REJECTION"
+          message="CONTENT VIOLATES SAFETY PROTOCOL. SIGNAL BLOCKED."
+          onConfirm={() => setModalConfig(null)}
+          onCancel={() => setModalConfig(null)}
+        />
+      )}
+
       <aside className="w-80 border-r border-zinc-100 pr-12 space-y-10 overflow-y-auto">
         <h3 className="text-[11px] uppercase tracking-[0.4em] font-bold text-zinc-900 sticky top-0 bg-white pb-6 border-b border-zinc-50">CHANNELS</h3>
         <div className="space-y-4">
@@ -142,7 +166,7 @@ const Messages: React.FC = () => {
                   <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group`}>
                     <div className="flex items-center gap-2 max-w-[70%]">
                       {isMe && (
-                        <button onClick={() => deleteMessage(m.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-zinc-300 hover:text-red-500">
+                        <button onClick={() => setModalConfig({ isOpen: true, msgId: m.id })} className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-zinc-300 hover:text-red-500">
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
                       )}
